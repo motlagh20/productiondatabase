@@ -1,0 +1,57 @@
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/init/00_schema.sql
+
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/tables/02_categories.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/tables/04_glazes.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/tables/03_molds.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/tables/06_firing_types.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/tables/05_products.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/tables/07_production_batches.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/tables/08_warehouse_stock.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/tables/09_warehouse_transactions.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/tables/10_roles.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/tables/11_users.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/tables/12_pages.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/tables/13_role_permissions.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/tables/14_dryer_loading.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/tables/15_dryer_unloading.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/tables/16_dryer_readings.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/tables/17_shifts_definition.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/tables/18_kiln_push_data.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/tables/19_setting_wagons.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/tables/20_packaging_records.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/tables/21_user_credentials.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/tables/22_login_sessions.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/tables/23_extra_code_map.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/tables/24_fuel_types.sql
+
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/functions/01_auth_functions.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/functions/03_permissions.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/functions/06_product_triggers.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/functions/02_dryer_triggers.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/functions/04_dryer_api.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/functions/05_login_flow.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/schema/functions/06_kiln_api.sql
+
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/views/01_example_view.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/views/02_product_details.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/views/03_users_overview.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/views/04_role_page_permissions.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/views/05_shift_options.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/views/06_user_options.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/views/07_product_options.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/views/08_product_insert.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/views/09_dryer_chambers_status.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/views/10_dryer_occupied.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/views/11_dryer_history.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/views/12_dryer_unload_history.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/views/13_dryer_readings_recent.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/views/14_kiln_pushing_recent.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/views/15_kiln_last_push_info.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/views/16_operators_dryer.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/views/17_operators_kiln.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/views/18_fuel_types.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/views/19_role_allowed_pages.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/views/20_user_allowed_pages.sql
+
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/init/03_seed_admin.sql
+\i c:/Users/Mohammad/Documents/trae_projects/ProductionDatabase/sql/init/99_api_compat.sql

@@ -1,0 +1,1095 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title data-i18n="page_title">مدیریت خط تولید</title>
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./design-standards.css">
+</head>
+<body>
+  
+  <nav class="navbar">
+    <div class="navbar-container">
+      <a href="#" class="navbar-brand" data-link="home">
+        <span data-i18n="brand">مدیریت تولید</span>
+      </a>
+      <div class="navbar-nav">
+        <button class="nav-link" data-link="home" data-i18n="nav_home">خانه</button>
+        
+        <div class="dropdown">
+          <button class="nav-link dropdown-toggle" data-i18n="nav_dryer_main">خشک‌کن</button>
+          <div class="dropdown-menu">
+            <button class="dropdown-item" data-link="dryer_dashboard" data-i18n="nav_dryer_dashboard">داشبورد</button>
+            <button class="dropdown-item" data-link="dryer_load" data-i18n="nav_dryer_load">بارگیری</button>
+            <button class="dropdown-item" data-link="dryer_unload" data-i18n="nav_dryer_unload">تخلیه</button>
+            <button class="dropdown-item" data-link="dryer_readings" data-i18n="nav_dryer_readings">قرائت‌ها</button>
+            <button class="dropdown-item" data-link="dryer_unload_setting">تخلیه و ستینگ</button>
+          </div>
+        </div>
+
+        <div class="dropdown">
+          <button class="nav-link dropdown-toggle" data-i18n="nav_setting_main">ستینگ</button>
+          <div class="dropdown-menu">
+            <button class="dropdown-item" data-link="setting_entry" data-i18n="nav_setting_entry">ثبت ستینگ</button>
+            <button class="dropdown-item" data-link="setting_transactions" data-i18n="nav_setting_transactions">تراکنش‌های ستینگ</button>
+          </div>
+        </div>
+
+        <div class="dropdown">
+          <button class="nav-link dropdown-toggle" data-i18n="nav_kiln_main">کوره</button>
+          <div class="dropdown-menu">
+            <button class="dropdown-item" data-link="kiln_pushing" data-i18n="nav_kiln_pushing">پوشینگ کوره</button>
+          </div>
+        </div>
+        <div class="dropdown">
+          <button class="nav-link dropdown-toggle" data-i18n="nav_admin_main">مدیریت</button>
+          <div class="dropdown-menu">
+            <button class="dropdown-item" data-link="admin_shifts" data-i18n="nav_admin_shifts">تعریف شیفت‌ها</button>
+            <button class="dropdown-item" data-link="admin_fuel" data-i18n="nav_admin_fuel">تعریف سوخت‌ها</button>
+            <button class="dropdown-item" data-link="admin_roles" data-i18n="nav_admin_roles">تعریف نقش‌ها</button>
+            <button class="dropdown-item" data-link="admin_users_roles" data-i18n="nav_admin_users_roles">کاربران و نقش‌ها</button>
+            <button class="dropdown-item" data-link="admin_access" data-i18n="nav_admin_access">دسترسی صفحات</button>
+            <div class="dropdown-divider"></div>
+            <button class="dropdown-item" data-link="admin_categories" data-i18n="nav_admin_categories">مدیریت دسته‌ها</button>
+            <button class="dropdown-item" data-link="admin_glazes" data-i18n="nav_admin_glazes">تعریف لعاب‌ها</button>
+            <button class="dropdown-item" data-link="admin_molds" data-i18n="nav_admin_molds">تعریف قالب‌ها</button>
+          </div>
+        </div>
+
+        <button class="nav-link" data-link="users" data-i18n="nav_users">کاربران</button>
+        <button class="nav-link" data-link="login" data-i18n="nav_login">ورود</button>
+      </div>
+      <div>
+        <select id="lang-select" style="width: auto; height: 32px; padding: 0 8px;">
+          <option value="fa">فارسی</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container">
+    
+    <!-- HOME VIEW -->
+    <section data-view="home" class="view active">
+      <div class="header-actions">
+        <h1 data-i18n="home_title">صفحه اصلی</h1>
+      </div>
+      <div class="cards">
+        <div class="card" data-link="dryer_dashboard">
+          <h2 data-i18n="card_dryer_dashboard_title">داشبورد خشک‌کن</h2>
+          <p data-i18n="card_dryer_dashboard_desc">مشاهده وضعیت آنلاین چمبرها و زمان‌بندی</p>
+        </div>
+        <div class="card" data-link="dryer_load">
+          <h2 data-i18n="card_dryer_load_title">ثبت بارگیری</h2>
+          <p data-i18n="card_dryer_load_desc">ثبت ورود واگن‌ها به خشک‌کن</p>
+        </div>
+        <div class="card" data-link="users">
+          <h2 data-i18n="card_users_title">مدیریت کاربران</h2>
+          <p data-i18n="card_users_desc">تعریف کاربران و دسترسی‌ها</p>
+        </div>
+        <div class="card" data-link="admin_categories">
+          <h2 data-i18n="card_admin_categories_title">مدیریت دسته‌ها</h2>
+          <p data-i18n="card_admin_categories_desc">افزودن/ویرایش/حذف دسته‌های محصول</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SETTING ENTRY VIEW -->
+    <section data-view="setting_entry" class="view">
+      <div class="header-actions">
+        <h1 data-i18n="setting_entry_title">ثبت ستینگ</h1>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-outline" id="setting-reset" data-i18n="setting_reset">پاک‌سازی فرم</button>
+        </div>
+      </div>
+      <div class="form-panel">
+        <form id="setting-entry-form" class="form-grid">
+          <div>
+            <label data-i18n="setting_date">تاریخ (شمسی)</label>
+            <input type="text" name="date_jalali" placeholder="1403/10/01" required>
+          </div>
+          <div>
+            <label data-i18n="setting_shift">شیفت</label>
+            <select name="shift" required>
+              <option value="">انتخاب...</option>
+              <option value="1">صبح</option>
+              <option value="2">عصر</option>
+              <option value="3">شب</option>
+            </select>
+          </div>
+          <div>
+            <label data-i18n="setting_supervisor">سرشیفت</label>
+            <select name="supervisor" required>
+              <option value="">انتخاب...</option>
+            </select>
+          </div>
+          <div>
+            <label data-i18n="setting_operator">اپراتور</label>
+            <select name="operator" required>
+              <option value="">انتخاب...</option>
+            </select>
+          </div>
+          <div>
+            <label data-i18n="setting_personnel">تعداد پرسنل</label>
+            <input type="number" name="personnel_count" min="0">
+          </div>
+          <div>
+            <label data-i18n="setting_chamber_no">شماره چمبر</label>
+            <input type="number" name="chamber_no" min="1">
+          </div>
+          <div>
+            <label>نام محصول (دسته + قالب)</label>
+            <input type="text" id="setting-product-name" placeholder="نام محصول دو قسمتی" disabled>
+            <div style="font-size:12px;color:#666;">در ستینگ بر اساس چمبرِ در حال تخلیه، دسته و قالب بارگذاری می‌شوند؛ لعاب در هر واگن تعیین می‌شود.</div>
+          </div>
+          <div>
+            <label data-i18n="setting_fingers_count">تعداد فینگر</label>
+            <input type="number" name="fingers_count" min="0">
+          </div>
+          <div>
+            <label data-i18n="setting_columns_count">تعداد ستون</label>
+            <input type="number" name="columns_count" min="0">
+          </div>
+          <div>
+            <label data-i18n="setting_dryer_waste">ضایعات خشک‌کن</label>
+            <input type="number" name="dryer_waste" min="0">
+          </div>
+          <div style="grid-column: 1 / -1;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <h2 style="margin:0; font-size:18px;" data-i18n="setting_wagons_title">واگن‌ها</h2>
+              <div style="display:flex; gap:8px;">
+                <button type="button" class="btn btn-outline" id="setting-add-wagon" data-i18n="setting_add_wagon">افزودن واگن</button>
+              </div>
+            </div>
+            <div id="setting-wagons-container" style="display:grid; gap:12px; margin-top:10px;"></div>
+          </div>
+          <div style="grid-column: 1 / -1; padding-bottom: 2px;">
+            <button type="submit" class="btn" style="width: 100%" data-i18n="setting_submit">ثبت ستینگ</button>
+          </div>
+        </form>
+        <div id="setting-entry-status" class="status-msg"></div>
+      </div>
+    </section>
+
+    <!-- SETTING TRANSACTIONS VIEW -->
+    <section data-view="setting_transactions" class="view">
+      <div class="header-actions">
+        <h1 data-i18n="setting_tx_title">تراکنش‌های ستینگ</h1>
+      </div>
+      <div class="form-panel">
+        <div class="form-grid">
+          <div>
+            <label data-i18n="setting_date">تاریخ (شمسی)</label>
+            <input type="text" id="setting-filter-date" placeholder="1403/10/01">
+          </div>
+          <div>
+            <label data-i18n="setting_chamber_no">شماره چمبر</label>
+            <input type="text" id="setting-filter-chamber">
+          </div>
+          <div>
+            <label data-i18n="setting_per_page">تعداد شیفت در هر صفحه</label>
+            <select id="setting-filter-per-page">
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="30">30</option>
+              <option value="40">40</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+              <option value="150">150</option>
+              <option value="200">200</option>
+            </select>
+          </div>
+          <div style="align-self:end;">
+            <div style="display:flex; gap:8px;">
+              <button class="btn" id="setting-apply-filters" data-i18n="setting_apply_filters">اعمال فیلتر</button>
+              <button class="btn" id="setting-clear-filters" data-i18n="setting_clear_filters">حذف فیلتر</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin:8px 0;">
+        <div id="setting-total-count"></div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button class="btn" id="setting-page-first" data-i18n="setting_page_first">اول</button>
+          <button class="btn" id="setting-page-prev" data-i18n="setting_page_prev">قبلی</button>
+          <span id="setting-page-label"></span>
+          <button class="btn" id="setting-page-next" data-i18n="setting_page_next">بعدی</button>
+          <button class="btn" id="setting-page-last" data-i18n="setting_page_last">آخر</button>
+        </div>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 50px;">شماره</th>
+              <th style="width: 80px;">چمبر</th>
+              <th style="width: 110px;">تاریخ</th>
+              <th style="width: 80px;">شیفت</th>
+              <th style="width: 150px;">اپراتور</th>
+              <th style="min-width: 150px;">محصول</th>
+              <th style="width: 80px;">فینگر</th>
+              <th style="width: 80px;">ضایعات</th>
+              <th style="width: 150px;">واگن‌ها</th>
+              <th style="width: 100px;">عملیات</th>
+            </tr>
+          </thead>
+          <tbody id="setting-transactions-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- KILN PUSHING ENTRY VIEW -->
+    <section data-view="kiln_pushing" class="view">
+      <div class="header-actions">
+        <h1 data-i18n="kiln_pushing_title">ثبت پوشینگ کوره</h1>
+        <button class="btn btn-outline" id="kiln-refresh-last" data-i18n="kiln_refresh_last">آخرین پوش</button>
+      </div>
+      
+      <div class="form-panel">
+        <form id="kiln-pushing-form" class="form-grid">
+          <div>
+            <label data-i18n="kiln_date">تاریخ (شمسی)</label>
+            <input type="text" name="push_date_jalali" placeholder="1403/10/01" required>
+          </div>
+          <div>
+            <label data-i18n="kiln_shift">شیفت</label>
+            <select name="shift_id" required>
+              <option value="">انتخاب...</option>
+            </select>
+          </div>
+          <div>
+            <label data-i18n="kiln_operator">اپراتور</label>
+            <select name="operator_id" required>
+              <option value="">انتخاب...</option>
+            </select>
+          </div>
+          <div>
+            <label>دسته</label>
+            <select name="category_id" required>
+              <option value="">انتخاب...</option>
+            </select>
+          </div>
+          <div>
+            <label>قالب</label>
+            <select name="mold_id" required>
+              <option value="">انتخاب...</option>
+            </select>
+          </div>
+          <div>
+            <label>لعاب</label>
+            <select name="glaze_id" required>
+              <option value="">انتخاب...</option>
+            </select>
+          </div>
+          <div>
+            <label>نام محصول</label>
+            <input type="text" id="kiln-product-name" disabled style="background-color: #f0f0f0;">
+          </div>
+          <div>
+            <label data-i18n="kiln_fuel_type">نوع سوخت</label>
+            <select name="fuel_type_id" required>
+              <option value="">انتخاب...</option>
+            </select>
+          </div>
+          <div>
+            <label data-i18n="kiln_car_incoming">واگن ورودی</label>
+            <input type="number" name="incoming_car_id" required min="1">
+          </div>
+          <div>
+            <label data-i18n="kiln_push_time">ساعت ورود واگن</label>
+            <input type="text" name="push_time" placeholder="HH:MM" inputmode="numeric" required>
+          </div>
+          <div>
+            <label data-i18n="kiln_temp_exhaust">دمای اگزوز</label>
+            <input type="number" name="temp_exhaust" step="0.1">
+          </div>
+          <div>
+            <label data-i18n="kiln_temp_preheat01">پیش‌گرما 1</label>
+            <input type="number" name="temp_preheat01" step="0.1">
+          </div>
+          <div>
+            <label data-i18n="kiln_temp_preheat02">پیش‌گرما 2</label>
+            <input type="number" name="temp_preheat02" step="0.1">
+          </div>
+          <div>
+            <label data-i18n="kiln_temp_thermostat">ترموستات</label>
+            <input type="number" name="temp_thermostat" step="0.1">
+          </div>
+          <div>
+            <label>زون 0</label>
+            <input type="number" name="temp_zone00" step="0.1">
+          </div>
+          <div>
+            <label>زون 1</label>
+            <input type="number" name="temp_zone01" step="0.1">
+          </div>
+          <div>
+            <label>زون 2</label>
+            <input type="number" name="temp_zone02" step="0.1">
+          </div>
+          <div>
+            <label>زون 3</label>
+            <input type="number" name="temp_zone03" step="0.1">
+          </div>
+          <div>
+            <label>زون 4</label>
+            <input type="number" name="temp_zone04" step="0.1">
+          </div>
+          <div>
+            <label>زون 5</label>
+            <input type="number" name="temp_zone05" step="0.1">
+          </div>
+          <div>
+            <label>زون 6</label>
+            <input type="number" name="temp_zone06" step="0.1">
+          </div>
+          <div>
+            <label>زون 7</label>
+            <input type="number" name="temp_zone07" step="0.1">
+          </div>
+          <div>
+            <label data-i18n="kiln_temp_rapid01">رپید 1</label>
+            <input type="number" name="temp_rapid01" step="0.1">
+          </div>
+          <div>
+            <label data-i18n="kiln_temp_rapid02">رپید 2</label>
+            <input type="number" name="temp_rapid02" step="0.1">
+          </div>
+          <div>
+            <label data-i18n="kiln_temp_bottom_a">باتوم A</label>
+            <input type="number" name="temp_bottom_a" step="0.1">
+          </div>
+          <div>
+            <label data-i18n="kiln_temp_bottom01">باتوم 1</label>
+            <input type="number" name="temp_bottom01" step="0.1">
+          </div>
+          <div>
+            <label data-i18n="kiln_temp_bottom_b">باتوم B</label>
+            <input type="number" name="temp_bottom_b" step="0.1">
+          </div>
+          <div>
+            <label data-i18n="kiln_temp_bottom02">باتوم 2</label>
+            <input type="number" name="temp_bottom02" step="0.1">
+          </div>
+          <div style="grid-column: 1 / -1;">
+            <label data-i18n="kiln_notes">یادداشت</label>
+            <input type="text" name="notes">
+          </div>
+          <div style="padding-bottom: 2px; grid-column: 1 / -1;">
+            <button type="submit" class="btn" style="width: 100%" data-i18n="kiln_submit">ثبت پوشینگ</button>
+          </div>
+        </form>
+        <div id="kiln-pushing-status" class="status-msg"></div>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>تاریخ</th>
+              <th>شیفت</th>
+              <th>محصول</th>
+              <th>واگن</th>
+              <th>ساعت ورود</th>
+              <th>اپراتور</th>
+            </tr>
+          </thead>
+          <tbody id="kiln-pushing-recent-body">
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ADMIN SHIFTS VIEW -->
+    <section data-view="admin_shifts" class="view">
+      <div class="header-actions">
+        <h1 data-i18n="admin_shifts_title">تعریف شیفت‌ها</h1>
+      </div>
+      <div class="form-panel">
+        <form id="admin-shifts-form" class="form-grid">
+          <div>
+            <label data-i18n="admin_shift_name">نام شیفت</label>
+            <input type="text" name="shift_name" required>
+          </div>
+          <div>
+            <label data-i18n="admin_shift_start">شروع شیفت</label>
+            <input type="text" name="start_time" placeholder="HH:MM" inputmode="numeric">
+          </div>
+          <div>
+            <label data-i18n="admin_shift_end">پایان شیفت</label>
+            <input type="text" name="end_time" placeholder="HH:MM" pattern="^([0-1]?\d|2[0-3]):[0-5]\d$" inputmode="numeric">
+          </div>
+          <div>
+            <label data-i18n="admin_shift_active">فعال</label>
+            <select name="is_active">
+              <option value="1">فعال</option>
+              <option value="0">غیرفعال</option>
+            </select>
+          </div>
+          <div style="grid-column: 1 / -1;">
+            <button type="submit" class="btn" data-i18n="admin_shift_submit">افزودن شیفت</button>
+          </div>
+        </form>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>کد</th><th>نام</th><th>شروع</th><th>پایان</th><th>فعال</th><th>عملیات</th>
+              </tr>
+            </thead>
+            <tbody id="admin-shifts-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ADMIN FUEL VIEW -->
+    <section data-view="admin_fuel" class="view">
+      <div class="header-actions">
+        <h1 data-i18n="admin_fuel_title">تعریف سوخت‌ها</h1>
+      </div>
+      <div class="form-panel">
+        <form id="admin-fuel-form" class="form-grid">
+          <div>
+            <label data-i18n="admin_fuel_name">نام سوخت</label>
+            <input type="text" name="fuel_name" required>
+          </div>
+          <div>
+            <label data-i18n="admin_fuel_active">فعال</label>
+            <select name="is_active">
+              <option value="1">فعال</option>
+              <option value="0">غیرفعال</option>
+            </select>
+          </div>
+          <div style="grid-column: 1 / -1;">
+            <button type="submit" class="btn" data-i18n="admin_fuel_submit">افزودن سوخت</button>
+          </div>
+        </form>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>نام</th><th>فعال</th><th>عملیات</th>
+              </tr>
+            </thead>
+            <tbody id="admin-fuel-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ADMIN GLAZES VIEW -->
+    <section data-view="admin_glazes" class="view">
+      <div class="header-actions">
+        <h1 data-i18n="admin_glazes_title">تعریف لعاب‌ها</h1>
+      </div>
+      <div class="form-panel">
+        <form id="admin-glazes-form" class="form-grid">
+          <div>
+            <label data-i18n="admin_glaze_name">نام لعاب</label>
+            <input type="text" name="glaze_name" required>
+          </div>
+          <div>
+            <label>لعابدار</label>
+            <select name="is_glazed">
+              <option value="1">بله</option>
+              <option value="0">خیر</option>
+            </select>
+          </div>
+          <div>
+            <label data-i18n="admin_glaze_active">فعال</label>
+            <select name="is_active">
+              <option value="1">فعال</option>
+              <option value="0">غیرفعال</option>
+            </select>
+          </div>
+          <div style="grid-column: 1 / -1;">
+            <button type="submit" class="btn" data-i18n="admin_glaze_submit">افزودن لعاب</button>
+          </div>
+        </form>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>کد</th><th>نام</th><th>لعابدار</th><th>فعال</th><th>عملیات</th>
+              </tr>
+            </thead>
+            <tbody id="admin-glazes-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ADMIN MOLDS VIEW -->
+    <section data-view="admin_molds" class="view">
+      <div class="header-actions">
+        <h1 data-i18n="admin_molds_title">تعریف قالب‌ها</h1>
+      </div>
+      <div class="form-panel">
+        <form id="admin-molds-form" class="form-grid">
+          <div>
+            <label data-i18n="admin_mold_name">نام قالب</label>
+            <input type="text" name="mold_name" required>
+          </div>
+          <div>
+            <label data-i18n="admin_mold_active">فعال</label>
+            <select name="is_active">
+              <option value="1">فعال</option>
+              <option value="0">غیرفعال</option>
+            </select>
+          </div>
+          <div style="grid-column: 1 / -1;">
+            <button type="submit" class="btn" data-i18n="admin_mold_submit">افزودن قالب</button>
+          </div>
+        </form>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>کد</th><th>نام</th><th>فعال</th><th>عملیات</th>
+              </tr>
+            </thead>
+            <tbody id="admin-molds-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ADMIN USERS & ROLES VIEW -->
+    <section data-view="admin_users_roles" class="view">
+      <div class="header-actions">
+        <h1 data-i18n="admin_users_roles_title">کاربران و نقش‌ها</h1>
+        <div style="display:flex; gap:8px; align-items:center; margin-right:auto;">
+          <input id="admin-users-search" type="text" placeholder="جستجو کاربر/نام" style="max-width:240px;">
+        </div>
+      </div>
+      <div class="form-panel">
+        <form id="admin-users-form" class="form-grid">
+          <div>
+            <label data-i18n="admin_user_username">نام کاربری</label>
+            <input type="text" name="username" required>
+          </div>
+          <div>
+            <label data-i18n="admin_user_fullname">نام کامل</label>
+            <input type="text" name="full_name">
+          </div>
+          <div>
+            <label data-i18n="admin_user_active">فعال</label>
+            <select name="is_active">
+              <option value="1">فعال</option>
+              <option value="0">غیرفعال</option>
+            </select>
+          </div>
+          <div style="grid-column: 1 / -1;">
+            <button type="submit" class="btn" data-i18n="admin_user_submit">افزودن کاربر</button>
+          </div>
+        </form>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>نام کاربری</th><th>نام کامل</th><th>فعال</th><th>نقش‌ها</th>
+              </tr>
+            </thead>
+            <tbody id="admin-users-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ADMIN ROLES VIEW -->
+    <section data-view="admin_roles" class="view">
+      <div class="header-actions">
+        <h1 data-i18n="admin_roles_title">تعریف نقش‌ها</h1>
+      </div>
+      <div class="form-panel">
+        <form id="admin-roles-form" class="form-grid">
+          <div>
+            <label data-i18n="admin_role_name">نام نقش</label>
+            <input type="text" name="role_name" required>
+          </div>
+          <div>
+            <label data-i18n="admin_role_active">فعال</label>
+            <select name="is_active">
+              <option value="1">فعال</option>
+              <option value="0">غیرفعال</option>
+            </select>
+          </div>
+          <div style="grid-column: 1 / -1;">
+            <button type="submit" class="btn" data-i18n="admin_role_submit">افزودن نقش</button>
+          </div>
+        </form>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>نام</th><th>فعال</th><th>عملیات</th>
+              </tr>
+            </thead>
+            <tbody id="admin-roles-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ADMIN ACCESS VIEW -->
+    <section data-view="admin_access" class="view">
+      <div class="header-actions">
+        <h1 data-i18n="admin_access_title">دسترسی صفحات</h1>
+      </div>
+      <div class="form-panel">
+        <div class="form-grid">
+          <div>
+            <label data-i18n="admin_access_role">نقش</label>
+            <select id="admin-access-role"></select>
+          </div>
+          <div style="grid-column: 1 / -1;">
+            <div id="admin-access-pages"></div>
+          </div>
+          <div style="grid-column: 1 / -1;">
+            <button class="btn" id="admin-access-save" data-i18n="admin_access_save">ذخیره دسترسی</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DRYER DASHBOARD VIEW -->
+    <section data-view="dryer_dashboard" class="view">
+      <div class="header-actions">
+        <h1 data-i18n="dryer_dashboard_title">داشبورد وضعیت خشک‌کن</h1>
+        <button class="btn btn-outline" id="refresh-dashboard">به‌روزرسانی</button>
+      </div>
+      
+      <div style="display: flex; gap: 16px; margin-bottom: 16px; align-items: center;">
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <div style="width: 16px; height: 16px; background: var(--success-bg); border: 1px solid var(--success-border); border-radius: 4px;"></div>
+          <span style="font-size: 13px;">پر (Occupied)</span>
+        </div>
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <div style="width: 16px; height: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px;"></div>
+          <span style="font-size: 13px;">خالی (Empty)</span>
+        </div>
+      </div>
+
+      <div id="dryer-grid" class="chamber-grid">
+        <!-- Grid items will be injected here -->
+        <div class="chamber-cell">Loading...</div>
+      </div>
+    </section>
+
+    <!-- DRYER LOAD VIEW -->
+    <section data-view="dryer_load" class="view">
+      <div class="header-actions">
+        <h1 data-i18n="dryer_load_title">ثبت بارگیری خشک‌کن</h1>
+      </div>
+
+      <div class="form-panel">
+        <form id="dryer-form" class="form-grid">
+          <div>
+            <label data-i18n="dryer_chamber">شماره چمبر</label>
+            <input type="number" name="chamber_no" required min="1">
+          </div>
+          <div>
+            <label>دسته</label>
+            <select name="category_id" required></select>
+          </div>
+          <div>
+            <label>قالب</label>
+            <select name="mold_id" required></select>
+          </div>
+          <div>
+            <label>نام محصول (دسته + قالب)</label>
+            <input type="text" id="dryer-product-name" disabled style="background-color: #f0f0f0;">
+          </div>
+          <div>
+            <label data-i18n="dryer_date">تاریخ (شمسی)</label>
+            <input type="text" name="load_date_jalali" placeholder="1403/10/01" required>
+          </div>
+          <div>
+            <label data-i18n="dryer_time">ساعت</label>
+            <input type="text" name="load_time" placeholder="HH:MM" inputmode="numeric" required>
+          </div>
+          <div>
+            <label data-i18n="dryer_operator">اپراتور</label>
+            <select name="operator_id">
+              <option value="1">اپراتور ۱</option>
+            </select>
+          </div>
+          <div>
+            <label data-i18n="dryer_finger_count">تعداد فینگر</label>
+            <input type="number" name="finger_count" required>
+          </div>
+          <div style="padding-bottom: 2px;">
+            <button type="submit" class="btn" style="width: 100%" data-i18n="dryer_submit">ثبت</button>
+          </div>
+        </form>
+        <div id="dryer-status" class="status-msg"></div>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>شماره</th>
+              <th>چمبر</th>
+              <th>محصول</th>
+              <th>تاریخ</th>
+              <th>ساعت</th>
+              <th>اپراتور</th>
+              <th>فینگر</th>
+              <th>عملیات</th>
+            </tr>
+          </thead>
+          <tbody id="dryer-history-body">
+            <!-- History rows -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- DRYER UNLOAD VIEW -->
+    <section data-view="dryer_unload" class="view">
+      <div class="header-actions">
+        <h1 data-i18n="dryer_unload_title">ثبت تخلیه خشک‌کن</h1>
+      </div>
+
+      <div class="form-panel">
+        <form id="dryer-unload-form" class="form-grid">
+          <div>
+            <label data-i18n="dryer_chamber">شماره چمبر</label>
+            <select name="cycle_id" required>
+              <option value="">انتخاب کنید...</option>
+            </select>
+          </div>
+          <div>
+            <label>اطلاعات محصول</label>
+            <input type="text" id="unload-product-info" disabled style="background-color: #f0f0f0;">
+          </div>
+          <div>
+            <label data-i18n="dryer_unload_date">تاریخ تخلیه (شمسی)</label>
+            <input type="text" name="unload_date_jalali" placeholder="1403/10/01" required>
+          </div>
+          <div>
+            <label data-i18n="dryer_unload_time">ساعت تخلیه</label>
+            <input type="text" name="unload_time" placeholder="HH:MM" inputmode="numeric" required>
+          </div>
+          <div>
+            <label data-i18n="dryer_operator">اپراتور</label>
+            <select name="operator_id" required>
+              <option value="">انتخاب...</option>
+            </select>
+          </div>
+          <div>
+            <label data-i18n="dryer_finger_count">تعداد فینگر</label>
+            <input type="number" name="finger_count" required>
+          </div>
+          <div style="padding-bottom: 2px;">
+            <button type="submit" class="btn" style="width: 100%" data-i18n="dryer_submit">ثبت تخلیه</button>
+          </div>
+        </form>
+        <div id="dryer-unload-status" class="status-msg"></div>
+      </div>
+
+      <div class="table-container">
+        <h2>آخرین تخلیه‌ها</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>شماره</th>
+              <th>چمبر</th>
+              <th>محصول</th>
+              <th>تاریخ</th>
+              <th>ساعت</th>
+              <th>اپراتور</th>
+              <th>فینگر</th>
+              <th>عملیات</th>
+            </tr>
+          </thead>
+          <tbody id="dryer-unload-history-body">
+            <!-- History rows -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- DRYER UNLOAD + SETTING VIEW -->
+    <section data-view="dryer_unload_setting" class="view">
+      <div class="header-actions">
+        <h1>تخلیه و ستینگ خشک‌کن</h1>
+      </div>
+      <div class="form-panel">
+        <h2 class="form-panel-title">ثبت تخلیه و ستینگ</h2>
+        <form id="dryer-unload-setting-form" class="form-grid form-grid-3">
+          <input type="hidden" name="category_id">
+          <input type="hidden" name="mold_id">
+          <input type="hidden" name="shift">
+          <div class="form-group">
+            <label for="chamber-select" class="required">چمبر اشغال‌شده</label>
+            <select name="chamber_no" id="chamber-select" required>
+              <option value="">انتخاب کنید...</option>
+            </select>
+          </div>
+          
+          <div class="form-col-span-full">
+            <div class="card" style="background: var(--info-bg); border-color: var(--info-border);">
+              <div class="card-header" style="padding: var(--spacing-sm); background: transparent; border: none;">
+                <h4 style="margin: 0; color: var(--info-text); font-size: 14px;">📊 اطلاعات بارگیری</h4>
+              </div>
+              <div id="dus-load-info" class="form-grid form-grid-3" style="gap: var(--spacing-sm);">
+                <div><strong>بارگیری:</strong> <span id="dus-load-datetime">-</span></div>
+                <div><strong>محصول:</strong> <span id="dus-load-product">-</span></div>
+                <div><strong>اپراتور:</strong> <span id="dus-load-operator">-</span></div>
+                <div><strong>دسته:</strong> <span id="dus-load-category">-</span></div>
+                <div><strong>قالب:</strong> <span id="dus-load-mold">-</span></div>
+                <div><strong>فینگر:</strong> <span id="dus-load-fingers">-</span></div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="unload-date" class="required">تاریخ تخلیه</label>
+            <input type="text" id="unload-date" name="unload_date_jalali" placeholder="1403/10/01" required>
+          </div>
+          <div class="form-group">
+            <label for="unload-time" class="required">ساعت تخلیه</label>
+            <input type="text" id="unload-time" name="unload_time" placeholder="HH:MM" inputmode="numeric" required>
+          </div>
+          <div class="form-group">
+            <label for="operator-select" class="required">اپراتور تخلیه</label>
+            <select name="operator_id" id="operator-select" required>
+              <option value="">انتخاب...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="finger-count" class="required">تعداد فینگر تخلیه‌شده</label>
+            <input type="number" id="finger-count" name="unloaded_finger_count" min="0" required>
+          </div>
+          <div class="form-group">
+            <label for="dryer-waste" class="required">ضایعات خشک‌کن</label>
+            <input type="number" id="dryer-waste" name="dryer_waste" min="0" required>
+          </div>
+          
+          <div class="form-col-span-full">
+              <div class="table-container">
+                <div class="d-flex justify-between align-center" style="padding: var(--spacing-md); padding-bottom: var(--spacing-sm);">
+                  <h3 class="table-container-title" style="margin: 0;">🚚 واگن‌های ستینگ</h3>
+                  <button type="button" class="btn btn-sm btn-primary" id="dus-add-wagon">
+                    ➕ افزودن واگن
+                  </button>
+                </div>
+                <div style="padding: 0 var(--spacing-md) var(--spacing-md);">
+                  <label class="required" style="display:block; margin-bottom:4px;">اپراتور ستینگ</label>
+                  <select name="setting_operator_id" required>
+                    <option value="">انتخاب...</option>
+                  </select>
+                </div>
+                <div class="table-responsive">
+                  <table class="table-compact">
+                    <thead>
+                      <tr>
+                        <th style="width: 80px;">ترتیب</th>
+                      <th style="width: 100px;">شماره</th>
+                      <th style="width: 150px;">لعاب</th>
+                      <th style="width: 120px;">ExtraCode</th>
+                      <th style="width: 100px;">شروع</th>
+                      <th style="width: 100px;">پایان</th>
+                      <th style="width: 100px;">بسته</th>
+                      <th style="width: 100px;">عملیات</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dus-wagons-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          
+          <div class="form-col-span-full">
+            <button type="submit" class="btn btn-primary btn-block btn-lg">
+              ✅ ثبت تخلیه و ستینگ
+            </button>
+          </div>
+        </form>
+        <div id="dus-status" class="status-msg"></div>
+      </div>
+      <!-- Latest Transactions Section - Read-Only Display -->
+      <div class="card" style="margin-top: var(--spacing-lg);">
+        <div class="card-header">
+          <div class="d-flex justify-between align-center">
+            <h2 class="card-title" style="margin: 0;">
+              📊 آخرین 10 تراکنش تخلیه و ستینگ
+            </h2>
+            <button type="button" class="btn btn-sm btn-outline" id="dus-refresh-transactions">
+              🔄 بازخوانی
+            </button>
+          </div>
+        </div>
+        
+        <div class="card-body">
+          <!-- Transactions List -->
+          <div class="table-container">
+            <div class="table-responsive">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width: 60px;">#</th>
+                    <th style="width: 80px;">چمبر</th>
+                    <th style="width: 120px;">تاریخ</th>
+                    <th style="width: 100px;">ساعت</th>
+                    <th style="min-width: 150px;">محصول</th>
+                    <th style="width: 100px;">فینگر</th>
+                    <th style="width: 100px;">ضایعات</th>
+                    <th style="width: 100px;">واگن‌ها</th>
+                    <th style="width: 150px;">اپراتور</th>
+                    <th style="width: 120px;">عملیات</th>
+                  </tr>
+                </thead>
+                <tbody id="dus-transactions-list">
+                  <tr>
+                    <td colspan="10" class="text-center text-muted" style="padding: var(--spacing-xl);">
+                      در حال بارگذاری...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <!-- Status Messages -->
+          <div id="dus-transactions-status" class="status-msg mt-3"></div>
+        </div>
+      </div>
+    </section>
+    <!-- DRYER READINGS VIEW -->
+    <section data-view="dryer_readings" class="view">
+      <div class="header-actions">
+        <h1 data-i18n="dryer_readings_title">ثبت قرائت‌های خشک‌کن</h1>
+      </div>
+      <div class="form-panel">
+        <form id="dryer-readings-form" class="form-grid">
+          <div>
+            <label data-i18n="dryer_chamber">شماره چمبر</label>
+            <select name="chamber_no" required>
+              <option value="">انتخاب کنید...</option>
+            </select>
+          </div>
+          <div>
+            <label data-i18n="dryer_date">تاریخ (شمسی)</label>
+            <input type="text" name="date_jalali" placeholder="1403/10/01" required>
+          </div>
+          <div>
+            <label data-i18n="dryer_time">ساعت</label>
+            <input type="text" name="time" placeholder="HH:MM" inputmode="numeric" required>
+          </div>
+          <div>
+            <label data-i18n="dryer_operator">اپراتور</label>
+            <select name="operator_code" required>
+              <option value="">انتخاب...</option>
+            </select>
+          </div>
+          <div>
+            <label data-i18n="dryer_temperature">دما</label>
+            <input type="number" name="temperature" step="0.1" required>
+          </div>
+          <div>
+            <label data-i18n="dryer_humidity">رطوبت</label>
+            <input type="number" name="humidity" step="0.1" required>
+          </div>
+          <div style="padding-bottom: 2px;">
+            <button type="submit" class="btn" style="width: 100%" data-i18n="dryer_submit">ثبت</button>
+          </div>
+        </form>
+        <div id="dryer-readings-status" class="status-msg"></div>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>چمبر</th>
+              <th>تاریخ</th>
+              <th>ساعت</th>
+              <th>دما</th>
+              <th>رطوبت</th>
+              <th>اپراتور</th>
+            </tr>
+          </thead>
+          <tbody id="dryer-readings-recent-body">
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- LOGIN VIEW -->
+    <section data-view="login" class="view">
+      <div class="form-panel" style="max-width: 400px; margin-top: 60px;">
+        <h1 style="text-align: center; margin-bottom: 24px;" data-i18n="login_title">ورود به سیستم</h1>
+        <form id="login-form" style="display: grid; gap: 16px;">
+          <div>
+            <label data-i18n="login_username">نام کاربری</label>
+            <input type="text" name="username" required>
+          </div>
+          <div>
+            <label data-i18n="login_password">رمز عبور</label>
+            <input type="password" name="password" required>
+          </div>
+          <button type="submit" class="btn" data-i18n="login_submit">ورود</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- USERS VIEW -->
+    <section data-view="users" class="view">
+      <h1>مدیریت کاربران</h1>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>کاربر</th>
+              <th>نقش</th>
+              <th>وضعیت</th>
+            </tr>
+          </thead>
+          <tbody id="users-table-body">
+            <tr><td>در حال بارگذاری...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ADMIN PRODUCTS VIEW: حذف شد در مدل ساده -->
+
+    <!-- ADMIN CATEGORIES VIEW -->
+    <section data-view="admin_categories" class="view">
+      <div class="header-actions">
+        <h1 data-i18n="admin_categories_title">مدیریت دسته‌ها</h1>
+      </div>
+      <div class="form-panel">
+        <form id="admin-categories-form" class="form-grid">
+          <div>
+            <label data-i18n="admin_category_name">نام دسته</label>
+            <input type="text" name="category_name" required>
+          </div>
+          <div style="grid-column: 1 / -1;">
+            <button type="submit" class="btn" data-i18n="admin_category_submit">افزودن دسته</button>
+          </div>
+        </form>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>شناسه</th><th>کد</th><th>نام</th><th>فعال</th><th>عملیات</th>
+              </tr>
+            </thead>
+            <tbody id="admin-categories-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- PRODUCT-CATEGORY ASSIGNMENT VIEW: حذف شد در مدل ساده -->
+
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>

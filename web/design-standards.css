@@ -1,0 +1,1217 @@
+/*
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                      استانداردهای طراحی سیستم مدیریت تولید                  ║
+║                     Production Management System Design Standards             ║
+║                                                                               ║
+║  این فایل شامل استانداردهای کلی طراحی برای تمامی صفحات، فرم‌ها و جداول است  ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+═════════════════════════════════════════════════════════════════════════════════
+  1. متغیرهای رنگی و تم (Color Variables & Theme)
+═════════════════════════════════════════════════════════════════════════════════
+*/
+
+:root {
+  /* رنگ‌های اصلی (Primary Colors) */
+  --primary: #2c3e50;              /* رنگ اصلی سیستم - آبی تیره */
+  --primary-dark: #1a252f;         /* رنگ اصلی تیره‌تر */
+  --primary-light: #34495e;        /* رنگ اصلی روشن‌تر */
+  --secondary: #34495e;            /* رنگ ثانویه */
+  --accent: #3498db;               /* رنگ تاکید - آبی روشن */
+  --accent-hover: #2980b9;         /* رنگ تاکید در حالت هاور */
+
+  /* رنگ‌های پس‌زمینه (Background Colors) */
+  --bg: #f6f8fa;                   /* پس‌زمینه کلی صفحه */
+  --bg-light: #ffffff;             /* پس‌زمینه روشن */
+  --surface: #ffffff;              /* پس‌زمینه کارت‌ها و المان‌ها */
+  --surface-hover: #fafafa;        /* پس‌زمینه در حالت هاور */
+  --overlay: rgba(0, 0, 0, 0.5);   /* پس‌زمینه مودال */
+
+  /* رنگ‌های متن (Text Colors) */
+  --text: #24292f;                 /* رنگ متن اصلی */
+  --text-muted: #57606a;           /* رنگ متن کم‌رنگ */
+  --text-light: #ffffff;           /* رنگ متن روشن */
+  --text-disabled: #8c959f;        /* رنگ متن غیرفعال */
+
+  /* رنگ‌های مرز (Border Colors) */
+  --border: #d0d7de;               /* رنگ مرز استاندارد */
+  --border-light: #e5e8eb;         /* رنگ مرز روشن */
+  --border-dark: #bcc3cc;          /* رنگ مرز تیره */
+  --border-focus: #3498db;         /* رنگ مرز در حالت فوکوس */
+
+  /* رنگ‌های وضعیت (Status Colors) */
+  --success: #28a745;              /* موفقیت - سبز */
+  --success-bg: #e6ffed;           /* پس‌زمینه موفقیت */
+  --success-text: #034d1e;         /* متن موفقیت */
+  --success-border: #34d058;       /* مرز موفقیت */
+
+  --error: #cf222e;                /* خطا - قرمز */
+  --error-bg: #ffebe9;             /* پس‌زمینه خطا */
+  --error-text: #82071e;           /* متن خطا */
+  --error-border: #ff4444;         /* مرز خطا */
+
+  --warning: #f39c12;              /* هشدار - نارنجی */
+  --warning-bg: #fff5e6;           /* پس‌زمینه هشدار */
+  --warning-text: #b8770b;         /* متن هشدار */
+  --warning-border: #ffb347;       /* مرز هشدار */
+
+  --info: #17a2b8;                 /* اطلاعات - فیروزه‌ای */
+  --info-bg: #e6f4ff;              /* پس‌زمینه اطلاعات */
+  --info-text: #0b6bb8;            /* متن اطلاعات */
+  --info-border: #17a2b8;          /* مرز اطلاعات */
+
+  /* سایه‌ها (Shadows) */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.15);
+  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.2);
+
+  /* فواصل (Spacing) */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+
+  /* شعاع گوشه‌ها (Border Radius) */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 9999px;
+
+  /* انتقال (Transitions) */
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.2s ease;
+  --transition-slow: 0.3s ease;
+
+  /* فونت‌ها (Fonts) */
+  --font-family: Vazirmatn, Tahoma, Arial, sans-serif;
+  --font-size-xs: 11px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 18px;
+  --font-size-2xl: 20px;
+  --font-size-3xl: 24px;
+
+  /* ارتفاع خط (Line Heights) */
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+
+  /* عرض محتوا (Content Width) */
+  --content-width-sm: 640px;
+  --content-width-md: 800px;
+  --content-width-lg: 1024px;
+  --content-width-xl: 1200px;
+  --content-width-2xl: 1400px;
+}
+
+/*
+═════════════════════════════════════════════════════════════════════════════════
+  2. استایل‌های پایه (Base Styles)
+═════════════════════════════════════════════════════════════════════════════════
+*/
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-normal);
+  color: var(--text);
+  background-color: var(--bg);
+  direction: rtl;
+}
+
+[dir="ltr"] body {
+  direction: ltr;
+}
+
+/*
+═════════════════════════════════════════════════════════════════════════════════
+  3. استایل‌های تایپوگرافی (Typography Styles)
+═════════════════════════════════════════════════════════════════════════════════
+*/
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  line-height: var(--line-height-tight);
+  color: var(--text);
+  margin-bottom: var(--spacing-md);
+}
+
+h1 {
+  font-size: var(--font-size-3xl);
+  margin-bottom: var(--spacing-lg);
+}
+
+h2 {
+  font-size: var(--font-size-2xl);
+}
+
+h3 {
+  font-size: var(--font-size-xl);
+}
+
+h4 {
+  font-size: var(--font-size-lg);
+}
+
+h5, h6 {
+  font-size: var(--font-size-base);
+}
+
+p {
+  margin-bottom: var(--spacing-md);
+  color: var(--text);
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.text-small {
+  font-size: var(--font-size-sm);
+}
+
+.text-large {
+  font-size: var(--font-size-lg);
+}
+
+/*
+═════════════════════════════════════════════════════════════════════════════════
+  4. استانداردهای فرم‌ها (Form Standards)
+═════════════════════════════════════════════════════════════════════════════════
+*/
+
+/* 4.1. پنل فرم (Form Panel) */
+.form-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-panel-title {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 2px solid var(--border-light);
+}
+
+/* 4.2. گرید فرم (Form Grid Layout) */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+  align-items: end;
+}
+
+.form-grid-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.form-grid-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.form-grid-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.form-col-span-2 {
+  grid-column: span 2;
+}
+
+.form-col-span-3 {
+  grid-column: span 3;
+}
+
+.form-col-span-full {
+  grid-column: 1 / -1;
+}
+
+/* 4.3. گروه فیلد (Form Field Group) */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.form-group-inline {
+  display: flex;
+  flex-direction: row;
+  gap: var(--spacing-sm);
+  align-items: center;
+}
+
+/* 4.4. لیبل‌ها (Labels) */
+label {
+  display: block;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: var(--spacing-xs);
+  cursor: pointer;
+}
+
+label.required::after {
+  content: " *";
+  color: var(--error);
+  font-weight: bold;
+}
+
+label.disabled {
+  color: var(--text-disabled);
+  cursor: not-allowed;
+}
+
+/* 4.5. ورودی‌ها (Inputs) */
+input,
+select,
+textarea {
+  width: 100%;
+  height: 38px;
+  padding: var(--spacing-sm) 12px;
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  color: var(--text);
+  background-color: var(--bg-light);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition-base),
+              box-shadow var(--transition-base);
+}
+
+textarea {
+  height: auto;
+  min-height: 80px;
+  resize: vertical;
+  line-height: var(--line-height-normal);
+}
+
+/* حالت فوکوس (Focus State) */
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+/* حالت غیرفعال (Disabled State) */
+input:disabled,
+select:disabled,
+textarea:disabled {
+  background-color: #f5f5f5;
+  color: var(--text-disabled);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* حالت خطا (Error State) */
+input.error,
+select.error,
+textarea.error {
+  border-color: var(--error);
+  background-color: #fff5f5;
+}
+
+input.error:focus,
+select.error:focus,
+textarea.error:focus {
+  box-shadow: 0 0 0 3px rgba(207, 34, 46, 0.1);
+}
+
+/* حالت موفق (Success State) */
+input.success,
+select.success,
+textarea.success {
+  border-color: var(--success);
+}
+
+/* حذف فلش‌های عددی در input type="number" */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* 4.6. چک‌باکس و رادیو باتن (Checkbox & Radio) */
+input[type="checkbox"],
+input[type="radio"] {
+  width: auto;
+  height: auto;
+  margin-left: var(--spacing-sm);
+  cursor: pointer;
+}
+
+[dir="ltr"] input[type="checkbox"],
+[dir="ltr"] input[type="radio"] {
+  margin-left: 0;
+  margin-right: var(--spacing-sm);
+}
+
+/* 4.7. راهنمای فیلد (Field Helper Text) */
+.form-helper {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin-top: var(--spacing-xs);
+}
+
+.form-error-message {
+  font-size: var(--font-size-xs);
+  color: var(--error);
+  margin-top: var(--spacing-xs);
+  display: none;
+}
+
+.form-group.has-error .form-error-message {
+  display: block;
+}
+
+/*
+═════════════════════════════════════════════════════════════════════════════════
+  5. استانداردهای دکمه‌ها (Button Standards)
+═════════════════════════════════════════════════════════════════════════════════
+*/
+
+/* 5.1. دکمه پایه (Base Button) */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  padding: 0 var(--spacing-md);
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  font-weight: 500;
+  color: var(--text-light);
+  background-color: var(--primary);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color var(--transition-base),
+              transform var(--transition-fast),
+              box-shadow var(--transition-base);
+  text-decoration: none;
+  user-select: none;
+}
+
+.btn:hover {
+  background-color: var(--primary-light);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn:disabled {
+  background-color: var(--border);
+  color: var(--text-disabled);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* 5.2. انواع دکمه (Button Variants) */
+.btn-primary {
+  background-color: var(--primary);
+  color: var(--text-light);
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-light);
+}
+
+.btn-secondary {
+  background-color: var(--secondary);
+  color: var(--text-light);
+}
+
+.btn-secondary:hover {
+  background-color: #2c3e50;
+}
+
+.btn-success {
+  background-color: var(--success);
+  color: var(--text-light);
+}
+
+.btn-success:hover {
+  background-color: #218838;
+}
+
+.btn-danger {
+  background-color: var(--error);
+  color: var(--text-light);
+}
+
+.btn-danger:hover {
+  background-color: #a01c25;
+}
+
+.btn-warning {
+  background-color: var(--warning);
+  color: var(--text-light);
+}
+
+.btn-warning:hover {
+  background-color: #d68910;
+}
+
+.btn-info {
+  background-color: var(--info);
+  color: var(--text-light);
+}
+
+.btn-info:hover {
+  background-color: #138496;
+}
+
+/* 5.3. دکمه تخته‌ای (Outline Button) */
+.btn-outline {
+  background-color: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn-outline:hover {
+  background-color: var(--bg);
+  border-color: var(--primary);
+  color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.btn-outline-primary {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.btn-outline-primary:hover {
+  background-color: var(--primary);
+  color: var(--text-light);
+}
+
+/* 5.4. سایزهای دکمه (Button Sizes) */
+.btn-sm {
+  height: 32px;
+  padding: 0 var(--spacing-sm);
+  font-size: var(--font-size-sm);
+}
+
+.btn-lg {
+  height: 44px;
+  padding: 0 var(--spacing-lg);
+  font-size: var(--font-size-lg);
+}
+
+.btn-xl {
+  height: 50px;
+  padding: 0 var(--spacing-xl);
+  font-size: var(--font-size-xl);
+}
+
+/* 5.5. دکمه تمام عرض (Full Width Button) */
+.btn-block {
+  width: 100%;
+  display: flex;
+}
+
+/* 5.6. گروه دکمه‌ها (Button Group) */
+.btn-group {
+  display: inline-flex;
+  gap: var(--spacing-sm);
+}
+
+.btn-group-vertical {
+  flex-direction: column;
+}
+
+/*
+═════════════════════════════════════════════════════════════════════════════════
+  6. استانداردهای جدول (Table Standards)
+═════════════════════════════════════════════════════════════════════════════════
+*/
+
+/* 6.1. محفظه جدول (Table Container) */
+.table-container {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-top: var(--spacing-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.table-container-title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  padding: var(--spacing-md) var(--spacing-md);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+/* 6.2. جدول (Table) */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-base);
+}
+
+/* 6.3. هدر جدول (Table Header) */
+thead {
+  background-color: var(--bg);
+  border-bottom: 2px solid var(--border-dark);
+}
+
+th {
+  padding: 12px var(--spacing-md);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: right;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+[dir="ltr"] th {
+  text-align: left;
+}
+
+/* 6.4. سلول جدول (Table Cell) */
+td {
+  padding: 12px var(--spacing-md);
+  border-top: 1px solid var(--border-light);
+  color: var(--text);
+  vertical-align: middle;
+}
+
+/* 6.5. ردیف جدول (Table Row) */
+tbody tr {
+  transition: background-color var(--transition-fast);
+}
+
+tbody tr:hover {
+  background-color: var(--surface-hover);
+}
+
+tbody tr:nth-child(even) {
+  background-color: #fafbfc;
+}
+
+tbody tr:nth-child(even):hover {
+  background-color: var(--surface-hover);
+}
+
+/* 6.6. جدول فشرده (Compact Table) */
+.table-compact th,
+.table-compact td {
+  padding: var(--spacing-sm) 12px;
+  font-size: var(--font-size-sm);
+}
+
+/* 6.7. جدول قابل مرتب‌سازی (Sortable Table) */
+th.sortable {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  padding-left: 24px;
+}
+
+[dir="ltr"] th.sortable {
+  padding-left: var(--spacing-md);
+  padding-right: 24px;
+}
+
+th.sortable::after {
+  content: "↕";
+  position: absolute;
+  left: var(--spacing-sm);
+  opacity: 0.4;
+}
+
+[dir="ltr"] th.sortable::after {
+  left: auto;
+  right: var(--spacing-sm);
+}
+
+th.sortable.asc::after {
+  content: "↑";
+  opacity: 1;
+}
+
+th.sortable.desc::after {
+  content: "↓";
+  opacity: 1;
+}
+
+/* 6.8. جدول با فیلتر (Filterable Table) */
+.table-filter-row {
+  background-color: var(--bg-light);
+}
+
+.table-filter-row input,
+.table-filter-row select {
+  height: 32px;
+  font-size: var(--font-size-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+}
+
+/* 6.9. حالت‌های ردیف (Row States) */
+tr.row-selected {
+  background-color: var(--info-bg) !important;
+}
+
+tr.row-success {
+  background-color: var(--success-bg) !important;
+}
+
+tr.row-warning {
+  background-color: var(--warning-bg) !important;
+}
+
+tr.row-error {
+  background-color: var(--error-bg) !important;
+}
+
+/* 6.10. جدول ریسپانسیو (Responsive Table) */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .table-responsive table {
+    font-size: var(--font-size-sm);
+  }
+  
+  .table-responsive th,
+  .table-responsive td {
+    padding: var(--spacing-sm);
+  }
+}
+
+/*
+═════════════════════════════════════════════════════════════════════════════════
+  7. استانداردهای کارت (Card Standards)
+═════════════════════════════════════════════════════════════════════════════════
+*/
+
+/* 7.1. کارت پایه (Base Card) */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  transition: transform var(--transition-base),
+              box-shadow var(--transition-base),
+              border-color var(--transition-base);
+  box-shadow: var(--shadow-sm);
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--accent);
+}
+
+/* 7.2. قسمت‌های کارت (Card Sections) */
+.card-header {
+  padding-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.card-title {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--primary);
+  margin: 0;
+}
+
+.card-subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  margin-top: var(--spacing-xs);
+}
+
+.card-body {
+  padding: var(--spacing-md) 0;
+}
+
+.card-footer {
+  padding-top: var(--spacing-md);
+  margin-top: var(--spacing-md);
+  border-top: 1px solid var(--border-light);
+}
+
+/* 7.3. گرید کارت‌ها (Card Grid) */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.cards-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.cards-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.cards-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+/*
+═════════════════════════════════════════════════════════════════════════════════
+  8. پیام‌های وضعیت (Status Messages)
+═════════════════════════════════════════════════════════════════════════════════
+*/
+
+/* 8.1. Badge Styles (for inline status indicators) */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 12px;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  border-radius: var(--radius-full);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.badge-primary {
+  background-color: var(--primary-bg);
+  color: var(--primary-text);
+  border: 1px solid var(--primary-border);
+}
+
+.badge-success {
+  background-color: var(--success-bg);
+  color: var(--success-text);
+  border: 1px solid var(--success-border);
+}
+
+.badge-warning {
+  background-color: var(--warning-bg);
+  color: var(--warning-text);
+  border: 1px solid var(--warning-border);
+}
+
+.badge-danger {
+  background-color: var(--error-bg);
+  color: var(--error-text);
+  border: 1px solid var(--error-border);
+}
+
+.badge-info {
+  background-color: var(--info-bg);
+  color: var(--info-text);
+  border: 1px solid var(--info-border);
+}
+
+.status-msg {
+  padding: 12px var(--spacing-md);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  margin: var(--spacing-md) 0;
+  border: 1px solid;
+  display: none;
+}
+
+.status-msg.show {
+  display: block;
+}
+
+.status-msg.success {
+  background-color: var(--success-bg);
+  color: var(--success-text);
+  border-color: var(--success-border);
+  display: block;
+}
+
+.status-msg.error {
+  background-color: var(--error-bg);
+  color: var(--error-text);
+  border-color: var(--error-border);
+  display: block;
+}
+
+.status-msg.warning {
+  background-color: var(--warning-bg);
+  color: var(--warning-text);
+  border-color: var(--warning-border);
+  display: block;
+}
+
+.status-msg.info {
+  background-color: var(--info-bg);
+  color: var(--info-text);
+  border-color: var(--info-border);
+  display: block;
+}
+
+/*
+═════════════════════════════════════════════════════════════════════════════════
+  9. نشانه‌ها و برچسب‌ها (Badges & Labels)
+═════════════════════════════════════════════════════════════════════════════════
+*/
+
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text-light);
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: baseline;
+  border-radius: var(--radius-full);
+}
+
+.badge-primary { background-color: var(--primary); }
+.badge-success { background-color: var(--success); }
+.badge-danger { background-color: var(--error); }
+.badge-warning { background-color: var(--warning); }
+.badge-info { background-color: var(--info); }
+
+.chip {
+  display: inline-block;
+  padding: 4px var(--spacing-sm);
+  border-radius: var(--radius-full);
+  background: #f2f4f7;
+  font-size: var(--font-size-sm);
+}
+
+.chip.primary {
+  background: var(--info-bg);
+  color: var(--info-text);
+}
+
+.chip.warn {
+  background: var(--warning-bg);
+  color: var(--warning-text);
+}
+
+.chip.ok {
+  background: var(--success-bg);
+  color: var(--success-text);
+}
+
+/*
+═════════════════════════════════════════════════════════════════════════════════
+  10. ابزارهای کاربردی (Utility Classes)
+═════════════════════════════════════════════════════════════════════════════════
+*/
+
+/* 10.1. فاصله‌گذاری (Spacing) */
+.m-0 { margin: 0 !important; }
+.mt-1 { margin-top: var(--spacing-xs) !important; }
+.mt-2 { margin-top: var(--spacing-sm) !important; }
+.mt-3 { margin-top: var(--spacing-md) !important; }
+.mt-4 { margin-top: var(--spacing-lg) !important; }
+.mb-1 { margin-bottom: var(--spacing-xs) !important; }
+.mb-2 { margin-bottom: var(--spacing-sm) !important; }
+.mb-3 { margin-bottom: var(--spacing-md) !important; }
+.mb-4 { margin-bottom: var(--spacing-lg) !important; }
+.ml-1 { margin-right: var(--spacing-xs) !important; }
+.ml-2 { margin-right: var(--spacing-sm) !important; }
+.ml-3 { margin-right: var(--spacing-md) !important; }
+.mr-1 { margin-left: var(--spacing-xs) !important; }
+.mr-2 { margin-left: var(--spacing-sm) !important; }
+.mr-3 { margin-left: var(--spacing-md) !important; }
+
+[dir="ltr"] .ml-1 { margin-left: var(--spacing-xs) !important; margin-right: 0 !important; }
+[dir="ltr"] .ml-2 { margin-left: var(--spacing-sm) !important; margin-right: 0 !important; }
+[dir="ltr"] .ml-3 { margin-left: var(--spacing-md) !important; margin-right: 0 !important; }
+[dir="ltr"] .mr-1 { margin-right: var(--spacing-xs) !important; margin-left: 0 !important; }
+[dir="ltr"] .mr-2 { margin-right: var(--spacing-sm) !important; margin-left: 0 !important; }
+[dir="ltr"] .mr-3 { margin-right: var(--spacing-md) !important; margin-left: 0 !important; }
+
+.p-0 { padding: 0 !important; }
+.p-1 { padding: var(--spacing-xs) !important; }
+.p-2 { padding: var(--spacing-sm) !important; }
+.p-3 { padding: var(--spacing-md) !important; }
+.p-4 { padding: var(--spacing-lg) !important; }
+
+/* 10.2. نمایش (Display) */
+.d-none { display: none !important; }
+.d-block { display: block !important; }
+.d-inline { display: inline !important; }
+.d-inline-block { display: inline-block !important; }
+.d-flex { display: flex !important; }
+.d-grid { display: grid !important; }
+
+/* 10.3. Flexbox */
+.flex-row { flex-direction: row !important; }
+.flex-column { flex-direction: column !important; }
+.flex-wrap { flex-wrap: wrap !important; }
+.justify-start { justify-content: flex-start !important; }
+.justify-center { justify-content: center !important; }
+.justify-end { justify-content: flex-end !important; }
+.justify-between { justify-content: space-between !important; }
+.align-start { align-items: flex-start !important; }
+.align-center { align-items: center !important; }
+.align-end { align-items: flex-end !important; }
+.gap-1 { gap: var(--spacing-xs) !important; }
+.gap-2 { gap: var(--spacing-sm) !important; }
+.gap-3 { gap: var(--spacing-md) !important; }
+.gap-4 { gap: var(--spacing-lg) !important; }
+
+/* 10.4. متن (Text) */
+.text-left { text-align: left !important; }
+.text-center { text-align: center !important; }
+.text-right { text-align: right !important; }
+.text-bold { font-weight: 700 !important; }
+.text-normal { font-weight: 400 !important; }
+
+/* 10.5. رنگ‌ها (Colors) */
+.text-primary { color: var(--primary) !important; }
+.text-success { color: var(--success) !important; }
+.text-danger { color: var(--error) !important; }
+.text-warning { color: var(--warning) !important; }
+.text-info { color: var(--info) !important; }
+.text-muted { color: var(--text-muted) !important; }
+
+.bg-primary { background-color: var(--primary) !important; }
+.bg-success { background-color: var(--success-bg) !important; }
+.bg-danger { background-color: var(--error-bg) !important; }
+.bg-warning { background-color: var(--warning-bg) !important; }
+.bg-info { background-color: var(--info-bg) !important; }
+
+/* 10.6. سایه (Shadow) */
+.shadow-none { box-shadow: none !important; }
+.shadow-sm { box-shadow: var(--shadow-sm) !important; }
+.shadow-md { box-shadow: var(--shadow-md) !important; }
+.shadow-lg { box-shadow: var(--shadow-lg) !important; }
+
+/* 10.7. مرز (Border) */
+.border { border: 1px solid var(--border) !important; }
+.border-0 { border: none !important; }
+.border-top { border-top: 1px solid var(--border) !important; }
+.border-bottom { border-bottom: 1px solid var(--border) !important; }
+.rounded { border-radius: var(--radius-md) !important; }
+.rounded-lg { border-radius: var(--radius-lg) !important; }
+.rounded-full { border-radius: var(--radius-full) !important; }
+
+/*
+═════════════════════════════════════════════════════════════════════════════════
+  11. ریسپانسیو (Responsive Design)
+═════════════════════════════════════════════════════════════════════════════════
+*/
+
+@media (max-width: 1200px) {
+  .form-grid {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+  
+  .cards {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .form-grid,
+  .form-grid-2,
+  .form-grid-3,
+  .form-grid-4 {
+    grid-template-columns: 1fr;
+  }
+  
+  .form-col-span-2,
+  .form-col-span-3 {
+    grid-column: span 1;
+  }
+  
+  .cards,
+  .cards-2,
+  .cards-3,
+  .cards-4 {
+    grid-template-columns: 1fr;
+  }
+  
+  .btn-group {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .btn-group .btn {
+    width: 100%;
+  }
+  
+  th, td {
+    padding: var(--spacing-sm);
+    font-size: var(--font-size-sm);
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    font-size: var(--font-size-sm);
+  }
+  
+  h1 { font-size: var(--font-size-xl); }
+  h2 { font-size: var(--font-size-lg); }
+  h3, h4, h5, h6 { font-size: var(--font-size-base); }
+  
+  .form-panel {
+    padding: var(--spacing-md);
+  }
+  
+  input,
+  select,
+  textarea,
+  .btn {
+    font-size: var(--font-size-sm);
+  }
+}
+
+/*
+═════════════════════════════════════════════════════════════════════════════════
+  12. انیمیشن‌ها (Animations)
+═════════════════════════════════════════════════════════════════════════════════
+*/
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.fade-in {
+  animation: fadeIn var(--transition-slow);
+}
+
+.slide-in {
+  animation: slideIn var(--transition-slow);
+}
+
+.pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/*
+═════════════════════════════════════════════════════════════════════════════════
+  13. ناوبری (Navigation)
+═════════════════════════════════════════════════════════════════════════════════
+*/
+
+.header-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+}
+
+.header-actions h1 {
+  margin: 0;
+  flex: 1;
+}
+
+/*
+═════════════════════════════════════════════════════════════════════════════════
+  14. پاورقی (Footer)
+═════════════════════════════════════════════════════════════════════════════════
+*/
+
+.footer {
+  margin-top: auto;
+  padding: var(--spacing-lg) 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  border-top: 1px solid var(--border);
+}
+
+/*
+═════════════════════════════════════════════════════════════════════════════════
+  15. چاپ (Print Styles)
+═════════════════════════════════════════════════════════════════════════════════
+*/
+
+@media print {
+  body {
+    background: white;
+    color: black;
+  }
+  
+  .btn,
+  .navbar,
+  .header-actions button,
+  .form-panel,
+  [data-no-print] {
+    display: none !important;
+  }
+  
+  table {
+    border: 1px solid black;
+  }
+  
+  th, td {
+    border: 1px solid black;
+    padding: 8px;
+  }
+  
+  .card {
+    border: 1px solid black;
+    box-shadow: none;
+    page-break-inside: avoid;
+  }
+}
