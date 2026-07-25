@@ -100,73 +100,73 @@
     <section data-view="setting_entry" class="view">
       <div class="header-actions">
         <h1 data-i18n="setting_entry_title">ثبت ستینگ</h1>
-        <div style="display:flex; gap:8px;">
+        <div class="btn-group">
           <button class="btn btn-outline" id="setting-reset" data-i18n="setting_reset">پاک‌سازی فرم</button>
         </div>
       </div>
       <div class="form-panel">
-        <form id="setting-entry-form" class="form-grid">
-          <div>
-            <label data-i18n="setting_date">تاریخ (شمسی)</label>
-            <input type="text" name="date_jalali" placeholder="1403/10/01" required>
+        <form id="setting-entry-form" class="form-grid form-grid-3">
+          <div class="form-group">
+            <label for="setting-date" class="required" data-i18n="setting_date">تاریخ (شمسی)</label>
+            <input type="text" id="setting-date" name="date_jalali" placeholder="1403/10/01" required>
           </div>
-          <div>
-            <label data-i18n="setting_shift">شیفت</label>
-            <select name="shift" required>
+          <div class="form-group">
+            <label for="setting-shift" class="required" data-i18n="setting_shift">شیفت</label>
+            <select id="setting-shift" name="shift" required>
               <option value="">انتخاب...</option>
               <option value="1">صبح</option>
               <option value="2">عصر</option>
               <option value="3">شب</option>
             </select>
           </div>
-          <div>
-            <label data-i18n="setting_supervisor">سرشیفت</label>
-            <select name="supervisor" required>
+          <div class="form-group">
+            <label for="setting-supervisor" class="required" data-i18n="setting_supervisor">سرشیفت</label>
+            <select id="setting-supervisor" name="supervisor" required>
               <option value="">انتخاب...</option>
             </select>
           </div>
-          <div>
-            <label data-i18n="setting_operator">اپراتور</label>
-            <select name="operator" required>
+          <div class="form-group">
+            <label for="setting-operator" class="required" data-i18n="setting_operator">اپراتور</label>
+            <select id="setting-operator" name="operator" required>
               <option value="">انتخاب...</option>
             </select>
           </div>
-          <div>
-            <label data-i18n="setting_personnel">تعداد پرسنل</label>
-            <input type="number" name="personnel_count" min="0">
+          <div class="form-group">
+            <label for="setting-personnel" data-i18n="setting_personnel">تعداد پرسنل</label>
+            <input type="number" id="setting-personnel" name="personnel_count" min="0">
           </div>
-          <div>
-            <label data-i18n="setting_chamber_no">شماره چمبر</label>
-            <input type="number" name="chamber_no" min="1">
+          <div class="form-group">
+            <label for="setting-chamber" data-i18n="setting_chamber_no">شماره چمبر</label>
+            <input type="number" id="setting-chamber" name="chamber_no" min="1">
           </div>
-          <div>
-            <label>نام محصول (دسته + قالب)</label>
+          <div class="form-group form-col-span-full">
+            <label for="setting-product-name">نام محصول (دسته + قالب)</label>
             <input type="text" id="setting-product-name" placeholder="نام محصول دو قسمتی" disabled>
-            <div style="font-size:12px;color:#666;">در ستینگ بر اساس چمبرِ در حال تخلیه، دسته و قالب بارگذاری می‌شوند؛ لعاب در هر واگن تعیین می‌شود.</div>
+            <div class="text-muted text-sm">در ستینگ بر اساس چمبرِ در حال تخلیه، دسته و قالب بارگذاری می‌شوند؛ لعاب در هر واگن تعیین می‌شود.</div>
           </div>
-          <div>
-            <label data-i18n="setting_fingers_count">تعداد فینگر</label>
-            <input type="number" name="fingers_count" min="0">
+          <div class="form-group">
+            <label for="setting-fingers" data-i18n="setting_fingers_count">تعداد فینگر</label>
+            <input type="number" id="setting-fingers" name="fingers_count" min="0">
           </div>
-          <div>
-            <label data-i18n="setting_columns_count">تعداد ستون</label>
-            <input type="number" name="columns_count" min="0">
+          <div class="form-group">
+            <label for="setting-columns" data-i18n="setting_columns_count">تعداد ستون</label>
+            <input type="number" id="setting-columns" name="columns_count" min="0">
           </div>
-          <div>
-            <label data-i18n="setting_dryer_waste">ضایعات خشک‌کن</label>
-            <input type="number" name="dryer_waste" min="0">
+          <div class="form-group">
+            <label for="setting-waste" data-i18n="setting_dryer_waste">ضایعات خشک‌کن</label>
+            <input type="number" id="setting-waste" name="dryer_waste" min="0">
           </div>
-          <div style="grid-column: 1 / -1;">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <h2 style="margin:0; font-size:18px;" data-i18n="setting_wagons_title">واگن‌ها</h2>
-              <div style="display:flex; gap:8px;">
-                <button type="button" class="btn btn-outline" id="setting-add-wagon" data-i18n="setting_add_wagon">افزودن واگن</button>
+          <div class="form-col-span-full">
+            <div class="d-flex justify-between align-center">
+              <h2 class="form-panel-title" style="margin:0; font-size:18px;" data-i18n="setting_wagons_title">واگن‌ها</h2>
+              <div class="btn-group">
+                <button type="button" class="btn btn-primary" id="setting-add-wagon" data-i18n="setting_add_wagon">افزودن واگن</button>
               </div>
             </div>
-            <div id="setting-wagons-container" style="display:grid; gap:12px; margin-top:10px;"></div>
+            <div id="setting-wagons-container" class="mt-2" style="display:grid; gap:12px;"></div>
           </div>
-          <div style="grid-column: 1 / -1; padding-bottom: 2px;">
-            <button type="submit" class="btn" style="width: 100%" data-i18n="setting_submit">ثبت ستینگ</button>
+          <div class="form-col-span-full">
+            <button type="submit" class="btn btn-primary btn-block" data-i18n="setting_submit">ثبت ستینگ</button>
           </div>
         </form>
         <div id="setting-entry-status" class="status-msg"></div>
@@ -202,21 +202,21 @@
             </select>
           </div>
           <div style="align-self:end;">
-            <div style="display:flex; gap:8px;">
-              <button class="btn" id="setting-apply-filters" data-i18n="setting_apply_filters">اعمال فیلتر</button>
-              <button class="btn" id="setting-clear-filters" data-i18n="setting_clear_filters">حذف فیلتر</button>
+            <div class="btn-group">
+              <button class="btn btn-primary" id="setting-apply-filters" data-i18n="setting_apply_filters">اعمال فیلتر</button>
+              <button class="btn btn-outline" id="setting-clear-filters" data-i18n="setting_clear_filters">حذف فیلتر</button>
             </div>
           </div>
         </div>
       </div>
-      <div style="display:flex; justify-content:space-between; align-items:center; margin:8px 0;">
+      <div class="d-flex justify-between align-center mt-2 mb-2">
         <div id="setting-total-count"></div>
-        <div style="display:flex; gap:8px; align-items:center;">
-          <button class="btn" id="setting-page-first" data-i18n="setting_page_first">اول</button>
-          <button class="btn" id="setting-page-prev" data-i18n="setting_page_prev">قبلی</button>
-          <span id="setting-page-label"></span>
-          <button class="btn" id="setting-page-next" data-i18n="setting_page_next">بعدی</button>
-          <button class="btn" id="setting-page-last" data-i18n="setting_page_last">آخر</button>
+        <div class="btn-group">
+          <button class="btn btn-sm btn-outline" id="setting-page-first" data-i18n="setting_page_first">اول</button>
+          <button class="btn btn-sm btn-outline" id="setting-page-prev" data-i18n="setting_page_prev">قبلی</button>
+          <span id="setting-page-label" class="px-2"></span>
+          <button class="btn btn-sm btn-outline" id="setting-page-next" data-i18n="setting_page_next">بعدی</button>
+          <button class="btn btn-sm btn-outline" id="setting-page-last" data-i18n="setting_page_last">آخر</button>
         </div>
       </div>
       <div class="table-container">
@@ -248,137 +248,137 @@
       </div>
       
       <div class="form-panel">
-        <form id="kiln-pushing-form" class="form-grid">
-          <div>
-            <label data-i18n="kiln_date">تاریخ (شمسی)</label>
-            <input type="text" name="push_date_jalali" placeholder="1403/10/01" required>
+        <form id="kiln-pushing-form" class="form-grid form-grid-4">
+          <div class="form-group">
+            <label for="kiln-date" class="required" data-i18n="kiln_date">تاریخ (شمسی)</label>
+            <input type="text" id="kiln-date" name="push_date_jalali" placeholder="1403/10/01" required>
           </div>
-          <div>
-            <label data-i18n="kiln_shift">شیفت</label>
-            <select name="shift_id" required>
+          <div class="form-group">
+            <label for="kiln-shift" class="required" data-i18n="kiln_shift">شیفت</label>
+            <select id="kiln-shift" name="shift_id" required>
               <option value="">انتخاب...</option>
             </select>
           </div>
-          <div>
-            <label data-i18n="kiln_operator">اپراتور</label>
-            <select name="operator_id" required>
+          <div class="form-group">
+            <label for="kiln-operator" class="required" data-i18n="kiln_operator">اپراتور</label>
+            <select id="kiln-operator" name="operator_id" required>
               <option value="">انتخاب...</option>
             </select>
           </div>
-          <div>
-            <label>دسته</label>
-            <select name="category_id" required>
+          <div class="form-group">
+            <label for="kiln-category" class="required">دسته</label>
+            <select id="kiln-category" name="category_id" required>
               <option value="">انتخاب...</option>
             </select>
           </div>
-          <div>
-            <label>قالب</label>
-            <select name="mold_id" required>
+          <div class="form-group">
+            <label for="kiln-mold" class="required">قالب</label>
+            <select id="kiln-mold" name="mold_id" required>
               <option value="">انتخاب...</option>
             </select>
           </div>
-          <div>
-            <label>لعاب</label>
-            <select name="glaze_id" required>
+          <div class="form-group">
+            <label for="kiln-glaze" class="required">لعاب</label>
+            <select id="kiln-glaze" name="glaze_id" required>
               <option value="">انتخاب...</option>
             </select>
           </div>
-          <div>
-            <label>نام محصول</label>
-            <input type="text" id="kiln-product-name" disabled style="background-color: #f0f0f0;">
+          <div class="form-group">
+            <label for="kiln-product-name">نام محصول</label>
+            <input type="text" id="kiln-product-name" disabled>
           </div>
-          <div>
-            <label data-i18n="kiln_fuel_type">نوع سوخت</label>
-            <select name="fuel_type_id" required>
+          <div class="form-group">
+            <label for="kiln-fuel" class="required" data-i18n="kiln_fuel_type">نوع سوخت</label>
+            <select id="kiln-fuel" name="fuel_type_id" required>
               <option value="">انتخاب...</option>
             </select>
           </div>
-          <div>
-            <label data-i18n="kiln_car_incoming">واگن ورودی</label>
-            <input type="number" name="incoming_car_id" required min="1">
+          <div class="form-group">
+            <label for="kiln-car" class="required" data-i18n="kiln_car_incoming">واگن ورودی</label>
+            <input type="number" id="kiln-car" name="incoming_car_id" required min="1">
           </div>
-          <div>
-            <label data-i18n="kiln_push_time">ساعت ورود واگن</label>
-            <input type="text" name="push_time" placeholder="HH:MM" inputmode="numeric" required>
+          <div class="form-group">
+            <label for="kiln-time" class="required" data-i18n="kiln_push_time">ساعت ورود واگن</label>
+            <input type="text" id="kiln-time" name="push_time" placeholder="HH:MM" inputmode="numeric" required>
           </div>
-          <div>
-            <label data-i18n="kiln_temp_exhaust">دمای اگزوز</label>
-            <input type="number" name="temp_exhaust" step="0.1">
+          <div class="form-group">
+            <label for="kiln-exhaust" data-i18n="kiln_temp_exhaust">دمای اگزوز</label>
+            <input type="number" id="kiln-exhaust" name="temp_exhaust" step="0.1">
           </div>
-          <div>
-            <label data-i18n="kiln_temp_preheat01">پیش‌گرما 1</label>
-            <input type="number" name="temp_preheat01" step="0.1">
+          <div class="form-group">
+            <label for="kiln-preheat1" data-i18n="kiln_temp_preheat01">پیش‌گرما 1</label>
+            <input type="number" id="kiln-preheat1" name="temp_preheat01" step="0.1">
           </div>
-          <div>
-            <label data-i18n="kiln_temp_preheat02">پیش‌گرما 2</label>
-            <input type="number" name="temp_preheat02" step="0.1">
+          <div class="form-group">
+            <label for="kiln-preheat2" data-i18n="kiln_temp_preheat02">پیش‌گرما 2</label>
+            <input type="number" id="kiln-preheat2" name="temp_preheat02" step="0.1">
           </div>
-          <div>
-            <label data-i18n="kiln_temp_thermostat">ترموستات</label>
-            <input type="number" name="temp_thermostat" step="0.1">
+          <div class="form-group">
+            <label for="kiln-thermostat" data-i18n="kiln_temp_thermostat">ترموستات</label>
+            <input type="number" id="kiln-thermostat" name="temp_thermostat" step="0.1">
           </div>
-          <div>
-            <label>زون 0</label>
-            <input type="number" name="temp_zone00" step="0.1">
+          <div class="form-group">
+            <label for="kiln-zone0">زون 0</label>
+            <input type="number" id="kiln-zone0" name="temp_zone00" step="0.1">
           </div>
-          <div>
-            <label>زون 1</label>
-            <input type="number" name="temp_zone01" step="0.1">
+          <div class="form-group">
+            <label for="kiln-zone1">زون 1</label>
+            <input type="number" id="kiln-zone1" name="temp_zone01" step="0.1">
           </div>
-          <div>
-            <label>زون 2</label>
-            <input type="number" name="temp_zone02" step="0.1">
+          <div class="form-group">
+            <label for="kiln-zone2">زون 2</label>
+            <input type="number" id="kiln-zone2" name="temp_zone02" step="0.1">
           </div>
-          <div>
-            <label>زون 3</label>
-            <input type="number" name="temp_zone03" step="0.1">
+          <div class="form-group">
+            <label for="kiln-zone3">زون 3</label>
+            <input type="number" id="kiln-zone3" name="temp_zone03" step="0.1">
           </div>
-          <div>
-            <label>زون 4</label>
-            <input type="number" name="temp_zone04" step="0.1">
+          <div class="form-group">
+            <label for="kiln-zone4">زون 4</label>
+            <input type="number" id="kiln-zone4" name="temp_zone04" step="0.1">
           </div>
-          <div>
-            <label>زون 5</label>
-            <input type="number" name="temp_zone05" step="0.1">
+          <div class="form-group">
+            <label for="kiln-zone5">زون 5</label>
+            <input type="number" id="kiln-zone5" name="temp_zone05" step="0.1">
           </div>
-          <div>
-            <label>زون 6</label>
-            <input type="number" name="temp_zone06" step="0.1">
+          <div class="form-group">
+            <label for="kiln-zone6">زون 6</label>
+            <input type="number" id="kiln-zone6" name="temp_zone06" step="0.1">
           </div>
-          <div>
-            <label>زون 7</label>
-            <input type="number" name="temp_zone07" step="0.1">
+          <div class="form-group">
+            <label for="kiln-zone7">زون 7</label>
+            <input type="number" id="kiln-zone7" name="temp_zone07" step="0.1">
           </div>
-          <div>
-            <label data-i18n="kiln_temp_rapid01">رپید 1</label>
-            <input type="number" name="temp_rapid01" step="0.1">
+          <div class="form-group">
+            <label for="kiln-rapid1" data-i18n="kiln_temp_rapid01">رپید 1</label>
+            <input type="number" id="kiln-rapid1" name="temp_rapid01" step="0.1">
           </div>
-          <div>
-            <label data-i18n="kiln_temp_rapid02">رپید 2</label>
-            <input type="number" name="temp_rapid02" step="0.1">
+          <div class="form-group">
+            <label for="kiln-rapid2" data-i18n="kiln_temp_rapid02">رپید 2</label>
+            <input type="number" id="kiln-rapid2" name="temp_rapid02" step="0.1">
           </div>
-          <div>
-            <label data-i18n="kiln_temp_bottom_a">باتوم A</label>
-            <input type="number" name="temp_bottom_a" step="0.1">
+          <div class="form-group">
+            <label for="kiln-bottoma" data-i18n="kiln_temp_bottom_a">باتوم A</label>
+            <input type="number" id="kiln-bottoma" name="temp_bottom_a" step="0.1">
           </div>
-          <div>
-            <label data-i18n="kiln_temp_bottom01">باتوم 1</label>
-            <input type="number" name="temp_bottom01" step="0.1">
+          <div class="form-group">
+            <label for="kiln-bottom1" data-i18n="kiln_temp_bottom01">باتوم 1</label>
+            <input type="number" id="kiln-bottom1" name="temp_bottom01" step="0.1">
           </div>
-          <div>
-            <label data-i18n="kiln_temp_bottom_b">باتوم B</label>
-            <input type="number" name="temp_bottom_b" step="0.1">
+          <div class="form-group">
+            <label for="kiln-bottomb" data-i18n="kiln_temp_bottom_b">باتوم B</label>
+            <input type="number" id="kiln-bottomb" name="temp_bottom_b" step="0.1">
           </div>
-          <div>
-            <label data-i18n="kiln_temp_bottom02">باتوم 2</label>
-            <input type="number" name="temp_bottom02" step="0.1">
+          <div class="form-group">
+            <label for="kiln-bottom2" data-i18n="kiln_temp_bottom02">باتوم 2</label>
+            <input type="number" id="kiln-bottom2" name="temp_bottom02" step="0.1">
           </div>
-          <div style="grid-column: 1 / -1;">
-            <label data-i18n="kiln_notes">یادداشت</label>
-            <input type="text" name="notes">
+          <div class="form-group form-col-span-full">
+            <label for="kiln-notes" data-i18n="kiln_notes">یادداشت</label>
+            <input type="text" id="kiln-notes" name="notes">
           </div>
-          <div style="padding-bottom: 2px; grid-column: 1 / -1;">
-            <button type="submit" class="btn" style="width: 100%" data-i18n="kiln_submit">ثبت پوشینگ</button>
+          <div class="form-col-span-full">
+            <button type="submit" class="btn btn-primary btn-block" data-i18n="kiln_submit">ثبت پوشینگ</button>
           </div>
         </form>
         <div id="kiln-pushing-status" class="status-msg"></div>
@@ -427,8 +427,8 @@
               <option value="0">غیرفعال</option>
             </select>
           </div>
-          <div style="grid-column: 1 / -1;">
-            <button type="submit" class="btn" data-i18n="admin_shift_submit">افزودن شیفت</button>
+          <div class="form-col-span-full">
+            <button type="submit" class="btn btn-primary" data-i18n="admin_shift_submit">افزودن شیفت</button>
           </div>
         </form>
         <div class="table-container">
@@ -462,8 +462,8 @@
               <option value="0">غیرفعال</option>
             </select>
           </div>
-          <div style="grid-column: 1 / -1;">
-            <button type="submit" class="btn" data-i18n="admin_fuel_submit">افزودن سوخت</button>
+          <div class="form-col-span-full">
+            <button type="submit" class="btn btn-primary" data-i18n="admin_fuel_submit">افزودن سوخت</button>
           </div>
         </form>
         <div class="table-container">
@@ -504,8 +504,8 @@
               <option value="0">غیرفعال</option>
             </select>
           </div>
-          <div style="grid-column: 1 / -1;">
-            <button type="submit" class="btn" data-i18n="admin_glaze_submit">افزودن لعاب</button>
+          <div class="form-col-span-full">
+            <button type="submit" class="btn btn-primary" data-i18n="admin_glaze_submit">افزودن لعاب</button>
           </div>
         </form>
         <div class="table-container">
@@ -539,8 +539,8 @@
               <option value="0">غیرفعال</option>
             </select>
           </div>
-          <div style="grid-column: 1 / -1;">
-            <button type="submit" class="btn" data-i18n="admin_mold_submit">افزودن قالب</button>
+          <div class="form-col-span-full">
+            <button type="submit" class="btn btn-primary" data-i18n="admin_mold_submit">افزودن قالب</button>
           </div>
         </form>
         <div class="table-container">
@@ -581,8 +581,8 @@
               <option value="0">غیرفعال</option>
             </select>
           </div>
-          <div style="grid-column: 1 / -1;">
-            <button type="submit" class="btn" data-i18n="admin_user_submit">افزودن کاربر</button>
+          <div class="form-col-span-full">
+            <button type="submit" class="btn btn-primary" data-i18n="admin_user_submit">افزودن کاربر</button>
           </div>
         </form>
         <div class="table-container">
@@ -616,8 +616,8 @@
               <option value="0">غیرفعال</option>
             </select>
           </div>
-          <div style="grid-column: 1 / -1;">
-            <button type="submit" class="btn" data-i18n="admin_role_submit">افزودن نقش</button>
+          <div class="form-col-span-full">
+            <button type="submit" class="btn btn-primary" data-i18n="admin_role_submit">افزودن نقش</button>
           </div>
         </form>
         <div class="table-container">
@@ -647,8 +647,8 @@
           <div style="grid-column: 1 / -1;">
             <div id="admin-access-pages"></div>
           </div>
-          <div style="grid-column: 1 / -1;">
-            <button class="btn" id="admin-access-save" data-i18n="admin_access_save">ذخیره دسترسی</button>
+          <div class="form-col-span-full">
+            <button class="btn btn-primary" id="admin-access-save" data-i18n="admin_access_save">ذخیره دسترسی</button>
           </div>
         </div>
       </div>
@@ -685,43 +685,43 @@
       </div>
 
       <div class="form-panel">
-        <form id="dryer-form" class="form-grid">
-          <div>
-            <label data-i18n="dryer_chamber">شماره چمبر</label>
-            <input type="number" name="chamber_no" required min="1">
+        <form id="dryer-form" class="form-grid form-grid-3">
+          <div class="form-group">
+            <label for="dryer-chamber" class="required" data-i18n="dryer_chamber">شماره چمبر</label>
+            <input type="number" id="dryer-chamber" name="chamber_no" required min="1">
           </div>
-          <div>
-            <label>دسته</label>
-            <select name="category_id" required></select>
+          <div class="form-group">
+            <label for="dryer-category" class="required">دسته</label>
+            <select id="dryer-category" name="category_id" required></select>
           </div>
-          <div>
-            <label>قالب</label>
-            <select name="mold_id" required></select>
+          <div class="form-group">
+            <label for="dryer-mold" class="required">قالب</label>
+            <select id="dryer-mold" name="mold_id" required></select>
           </div>
-          <div>
-            <label>نام محصول (دسته + قالب)</label>
-            <input type="text" id="dryer-product-name" disabled style="background-color: #f0f0f0;">
+          <div class="form-group form-col-span-full">
+            <label for="dryer-product-name">نام محصول (دسته + قالب)</label>
+            <input type="text" id="dryer-product-name" disabled>
           </div>
-          <div>
-            <label data-i18n="dryer_date">تاریخ (شمسی)</label>
-            <input type="text" name="load_date_jalali" placeholder="1403/10/01" required>
+          <div class="form-group">
+            <label for="dryer-date" class="required" data-i18n="dryer_date">تاریخ (شمسی)</label>
+            <input type="text" id="dryer-date" name="load_date_jalali" placeholder="1403/10/01" required>
           </div>
-          <div>
-            <label data-i18n="dryer_time">ساعت</label>
-            <input type="text" name="load_time" placeholder="HH:MM" inputmode="numeric" required>
+          <div class="form-group">
+            <label for="dryer-time" class="required" data-i18n="dryer_time">ساعت</label>
+            <input type="text" id="dryer-time" name="load_time" placeholder="HH:MM" inputmode="numeric" required>
           </div>
-          <div>
-            <label data-i18n="dryer_operator">اپراتور</label>
-            <select name="operator_id">
+          <div class="form-group">
+            <label for="dryer-operator" data-i18n="dryer_operator">اپراتور</label>
+            <select id="dryer-operator" name="operator_id">
               <option value="1">اپراتور ۱</option>
             </select>
           </div>
-          <div>
-            <label data-i18n="dryer_finger_count">تعداد فینگر</label>
-            <input type="number" name="finger_count" required>
+          <div class="form-group">
+            <label for="dryer-fingers" class="required" data-i18n="dryer_finger_count">تعداد فینگر</label>
+            <input type="number" id="dryer-fingers" name="finger_count" required>
           </div>
-          <div style="padding-bottom: 2px;">
-            <button type="submit" class="btn" style="width: 100%" data-i18n="dryer_submit">ثبت</button>
+          <div class="form-col-span-full">
+            <button type="submit" class="btn btn-primary btn-block" data-i18n="dryer_submit">ثبت</button>
           </div>
         </form>
         <div id="dryer-status" class="status-msg"></div>
@@ -755,44 +755,44 @@
       </div>
 
       <div class="form-panel">
-        <form id="dryer-unload-form" class="form-grid">
-          <div>
-            <label data-i18n="dryer_chamber">شماره چمبر</label>
-            <select name="cycle_id" required>
+        <form id="dryer-unload-form" class="form-grid form-grid-3">
+          <div class="form-group">
+            <label for="unload-cycle" class="required" data-i18n="dryer_chamber">شماره چمبر</label>
+            <select id="unload-cycle" name="cycle_id" required>
               <option value="">انتخاب کنید...</option>
             </select>
           </div>
-          <div>
-            <label>اطلاعات محصول</label>
-            <input type="text" id="unload-product-info" disabled style="background-color: #f0f0f0;">
+          <div class="form-group form-col-span-full">
+            <label for="unload-product-info">اطلاعات محصول</label>
+            <input type="text" id="unload-product-info" disabled>
           </div>
-          <div>
-            <label data-i18n="dryer_unload_date">تاریخ تخلیه (شمسی)</label>
-            <input type="text" name="unload_date_jalali" placeholder="1403/10/01" required>
+          <div class="form-group">
+            <label for="unload-date" class="required" data-i18n="dryer_unload_date">تاریخ تخلیه (شمسی)</label>
+            <input type="text" id="unload-date" name="unload_date_jalali" placeholder="1403/10/01" required>
           </div>
-          <div>
-            <label data-i18n="dryer_unload_time">ساعت تخلیه</label>
-            <input type="text" name="unload_time" placeholder="HH:MM" inputmode="numeric" required>
+          <div class="form-group">
+            <label for="unload-time" class="required" data-i18n="dryer_unload_time">ساعت تخلیه</label>
+            <input type="text" id="unload-time" name="unload_time" placeholder="HH:MM" inputmode="numeric" required>
           </div>
-          <div>
-            <label data-i18n="dryer_operator">اپراتور</label>
-            <select name="operator_id" required>
+          <div class="form-group">
+            <label for="unload-operator" class="required" data-i18n="dryer_operator">اپراتور</label>
+            <select id="unload-operator" name="operator_id" required>
               <option value="">انتخاب...</option>
             </select>
           </div>
-          <div>
-            <label data-i18n="dryer_finger_count">تعداد فینگر</label>
-            <input type="number" name="finger_count" required>
+          <div class="form-group">
+            <label for="unload-fingers" class="required" data-i18n="dryer_finger_count">تعداد فینگر</label>
+            <input type="number" id="unload-fingers" name="finger_count" required>
           </div>
-          <div style="padding-bottom: 2px;">
-            <button type="submit" class="btn" style="width: 100%" data-i18n="dryer_submit">ثبت تخلیه</button>
+          <div class="form-col-span-full">
+            <button type="submit" class="btn btn-primary btn-block" data-i18n="dryer_submit">ثبت تخلیه</button>
           </div>
         </form>
         <div id="dryer-unload-status" class="status-msg"></div>
       </div>
 
       <div class="table-container">
-        <h2>آخرین تخلیه‌ها</h2>
+        <h2 class="table-container-title">آخرین تخلیه‌ها</h2>
         <table>
           <thead>
             <tr>
@@ -966,37 +966,37 @@
         <h1 data-i18n="dryer_readings_title">ثبت قرائت‌های خشک‌کن</h1>
       </div>
       <div class="form-panel">
-        <form id="dryer-readings-form" class="form-grid">
-          <div>
-            <label data-i18n="dryer_chamber">شماره چمبر</label>
-            <select name="chamber_no" required>
+        <form id="dryer-readings-form" class="form-grid form-grid-3">
+          <div class="form-group">
+            <label for="reading-chamber" class="required" data-i18n="dryer_chamber">شماره چمبر</label>
+            <select id="reading-chamber" name="chamber_no" required>
               <option value="">انتخاب کنید...</option>
             </select>
           </div>
-          <div>
-            <label data-i18n="dryer_date">تاریخ (شمسی)</label>
-            <input type="text" name="date_jalali" placeholder="1403/10/01" required>
+          <div class="form-group">
+            <label for="reading-date" class="required" data-i18n="dryer_date">تاریخ (شمسی)</label>
+            <input type="text" id="reading-date" name="date_jalali" placeholder="1403/10/01" required>
           </div>
-          <div>
-            <label data-i18n="dryer_time">ساعت</label>
-            <input type="text" name="time" placeholder="HH:MM" inputmode="numeric" required>
+          <div class="form-group">
+            <label for="reading-time" class="required" data-i18n="dryer_time">ساعت</label>
+            <input type="text" id="reading-time" name="time" placeholder="HH:MM" inputmode="numeric" required>
           </div>
-          <div>
-            <label data-i18n="dryer_operator">اپراتور</label>
-            <select name="operator_code" required>
+          <div class="form-group">
+            <label for="reading-operator" class="required" data-i18n="dryer_operator">اپراتور</label>
+            <select id="reading-operator" name="operator_code" required>
               <option value="">انتخاب...</option>
             </select>
           </div>
-          <div>
-            <label data-i18n="dryer_temperature">دما</label>
-            <input type="number" name="temperature" step="0.1" required>
+          <div class="form-group">
+            <label for="reading-temp" class="required" data-i18n="dryer_temperature">دما</label>
+            <input type="number" id="reading-temp" name="temperature" step="0.1" required>
           </div>
-          <div>
-            <label data-i18n="dryer_humidity">رطوبت</label>
-            <input type="number" name="humidity" step="0.1" required>
+          <div class="form-group">
+            <label for="reading-humidity" class="required" data-i18n="dryer_humidity">رطوبت</label>
+            <input type="number" id="reading-humidity" name="humidity" step="0.1" required>
           </div>
-          <div style="padding-bottom: 2px;">
-            <button type="submit" class="btn" style="width: 100%" data-i18n="dryer_submit">ثبت</button>
+          <div class="form-col-span-full">
+            <button type="submit" class="btn btn-primary btn-block" data-i18n="dryer_submit">ثبت</button>
           </div>
         </form>
         <div id="dryer-readings-status" class="status-msg"></div>
@@ -1021,25 +1021,29 @@
 
     <!-- LOGIN VIEW -->
     <section data-view="login" class="view">
-      <div class="form-panel" style="max-width: 400px; margin-top: 60px;">
-        <h1 style="text-align: center; margin-bottom: 24px;" data-i18n="login_title">ورود به سیستم</h1>
-        <form id="login-form" style="display: grid; gap: 16px;">
-          <div>
-            <label data-i18n="login_username">نام کاربری</label>
-            <input type="text" name="username" required>
+      <div class="form-panel" style="max-width: 400px; margin: 60px auto;">
+        <h2 class="form-panel-title text-center" data-i18n="login_title">ورود به سیستم</h2>
+        <form id="login-form" class="form-grid">
+          <div class="form-col-span-full">
+            <label for="login-username" class="required" data-i18n="login_username">نام کاربری</label>
+            <input type="text" id="login-username" name="username" required>
           </div>
-          <div>
-            <label data-i18n="login_password">رمز عبور</label>
-            <input type="password" name="password" required>
+          <div class="form-col-span-full">
+            <label for="login-password" class="required" data-i18n="login_password">رمز عبور</label>
+            <input type="password" id="login-password" name="password" required>
           </div>
-          <button type="submit" class="btn" data-i18n="login_submit">ورود</button>
+          <div class="form-col-span-full">
+            <button type="submit" class="btn btn-primary btn-block" data-i18n="login_submit">ورود</button>
+          </div>
         </form>
       </div>
     </section>
 
     <!-- USERS VIEW -->
     <section data-view="users" class="view">
-      <h1>مدیریت کاربران</h1>
+      <div class="header-actions">
+        <h1>مدیریت کاربران</h1>
+      </div>
       <div class="table-container">
         <table>
           <thead>
@@ -1069,8 +1073,8 @@
             <label data-i18n="admin_category_name">نام دسته</label>
             <input type="text" name="category_name" required>
           </div>
-          <div style="grid-column: 1 / -1;">
-            <button type="submit" class="btn" data-i18n="admin_category_submit">افزودن دسته</button>
+          <div class="form-col-span-full">
+            <button type="submit" class="btn btn-primary" data-i18n="admin_category_submit">افزودن دسته</button>
           </div>
         </form>
         <div class="table-container">

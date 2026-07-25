@@ -811,7 +811,7 @@ async function initAdminCategories() {
         const actions = row.querySelector('td:nth-child(5)');
         row.querySelector('td:nth-child(3)').innerHTML = `<input type="text" value="${currentName}" data-edit="name">`;
         row.querySelector('td:nth-child(4)').innerHTML = `<label style="display:inline-flex; gap:6px; align-items:center;"><input type="checkbox" ${isActive ? 'checked' : ''} data-edit="active"> فعال</label>`;
-        actions.innerHTML = `<button class="btn" data-act="save-category" data-id="${id}">ذخیره</button><button class="btn btn-outline" data-act="cancel-category">لغو</button>`;
+        actions.innerHTML = `<div class="btn-group"><button class="btn btn-sm btn-success" data-act="save-category" data-id="${id}">ذخیره</button><button class="btn btn-sm btn-outline" data-act="cancel-category">لغو</button></div>`;
         return;
       }
       const saveBtn = e.target.closest('#admin-categories-body [data-act="save-category"]');
@@ -1146,15 +1146,17 @@ window.enableInlineEdit = async function(id) {
   row.innerHTML = `
     <td>${toPersianDigits(id)}</td>
     <td>${chamberHtml}</td>
-    <td style="display:flex; gap:6px;">${catHtml}${moldHtml}${glazeHtml}</td>
+    <td><div class="btn-group">${catHtml}${moldHtml}${glazeHtml}</div></td>
     <td>${dateHtml}</td>
     <td>${timeHtml}</td>
     <td>${opHtml}</td>
     <td>${fingerHtml}</td>
-    <td style="display:flex; gap:4px;">
-      <button class="btn btn-sm btn-success" onclick="saveInlineEdit(${id})" style="padding:2px 6px;font-size:12px;">✔</button>
-      <button class="btn btn-sm btn-danger" onclick="cancelInlineEdit(${id})" style="padding:2px 6px;font-size:12px;">✖</button>
-      <button class="btn btn-sm btn-outline" onclick="deleteLoad(${id})" style="padding:2px 6px;font-size:12px;">حذف</button>
+    <td>
+      <div class="btn-group">
+        <button class="btn btn-sm btn-success" onclick="saveInlineEdit(${id})" title="ذخیره">✔</button>
+        <button class="btn btn-sm btn-outline" onclick="cancelInlineEdit(${id})" title="لغو">✖</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteLoad(${id})">حذف</button>
+      </div>
     </td>
   `;
   
@@ -1995,7 +1997,7 @@ async function initAdminShifts() {
         row.querySelector('td:nth-child(2)').innerHTML = `<input type="text" value="${currentName}" data-edit="name">`;
         row.querySelector('td:nth-child(3)').innerHTML = `<input type="text" placeholder="HH:MM" value="${currentStart}" data-edit="start" inputmode="numeric">`;
         row.querySelector('td:nth-child(4)').innerHTML = `<input type="text" placeholder="HH:MM" value="${currentEnd}" data-edit="end" inputmode="numeric">`;
-        actions.innerHTML = `<button class="btn" data-act="save-shift" data-id="${id}">ذخیره</button><button class="btn btn-outline" data-act="cancel-shift">لغو</button>`;
+        actions.innerHTML = `<div class="btn-group"><button class="btn btn-sm btn-success" data-act="save-shift" data-id="${id}">ذخیره</button><button class="btn btn-sm btn-outline" data-act="cancel-shift">لغو</button></div>`;
         return;
       }
       const saveBtn = e.target.closest('#admin-shifts-body [data-act="save-shift"]');
@@ -2123,7 +2125,7 @@ async function initAdminGlazes() {
         row.querySelector('td:nth-child(2)').innerHTML = `<input type="text" value="${name}" data-edit="name">`;
         row.querySelector('td:nth-child(3)').innerHTML = `<label style="display:inline-flex; gap:6px; align-items:center;"><input type="checkbox" ${isGlazed ? 'checked' : ''} data-edit="glazed"> لعابدار</label>`;
         row.querySelector('td:nth-child(4)').innerHTML = `<label style="display:inline-flex; gap:6px; align-items:center;"><input type="checkbox" ${active ? 'checked' : ''} data-edit="active"> فعال</label>`;
-        actions.innerHTML = `<button class="btn" data-act="save-glaze" data-id="${id}">ذخیره</button><button class="btn btn-outline" data-act="cancel-glaze">لغو</button>`;
+        actions.innerHTML = `<div class="btn-group"><button class="btn btn-sm btn-success" data-act="save-glaze" data-id="${id}">ذخیره</button><button class="btn btn-sm btn-outline" data-act="cancel-glaze">لغو</button></div>`;
         return;
       }
       const saveBtn = e.target.closest('#admin-glazes-body [data-act="save-glaze"]');
@@ -2191,7 +2193,7 @@ async function initAdminMolds() {
         row.querySelector('td:nth-child(1)').textContent = row.querySelector('td:nth-child(1)').textContent;
         row.querySelector('td:nth-child(2)').innerHTML = `<input type="text" value="${name}" data-edit="name">`;
         row.querySelector('td:nth-child(3)').innerHTML = `<label style="display:inline-flex; gap:6px; align-items:center;"><input type="checkbox" ${active ? 'checked' : ''} data-edit="active"> فعال</label>`;
-        actions.innerHTML = `<button class="btn" data-act="save-mold" data-id="${id}">ذخیره</button><button class="btn btn-outline" data-act="cancel-mold">لغو</button>`;
+        actions.innerHTML = `<div class="btn-group"><button class="btn btn-sm btn-success" data-act="save-mold" data-id="${id}">ذخیره</button><button class="btn btn-sm btn-outline" data-act="cancel-mold">لغو</button></div>`;
         return;
       }
       const saveBtn = e.target.closest('#admin-molds-body [data-act="save-mold"]');
@@ -2812,7 +2814,7 @@ if (loginForm) {
       const res = await fetch('/api/rpc/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ p_username: username, p_password: password })
       });
       
       if (res.ok) {

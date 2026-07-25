@@ -12,6 +12,11 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./sql/init:/docker-entrypoint-initdb.d:ro
       - ./sql:/sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d appdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
 
   postgrest:
@@ -23,10 +28,11 @@ services:
       PGRST_DB_URI: postgres://appuser:apppass@postgres:5432/appdb
       PGRST_DB_SCHEMA: api
       PGRST_DB_ANON_ROLE: appuser
-      PGRST_JWT_SECRET: "mysecretpasswordforjwt"
+      PGRST_JWT_SECRET: "mysecretpasswordforjwt1234567890ab"
       PGRST_OPENAPI_SERVER_PROXY_URI: http://localhost:3000
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
   nginx:
