@@ -1,0 +1,4 @@
+-- This file is intentionally minimal.
+-- All schema, tables, functions, views, and API definitions are in 00_schema.sql.
+-- Seed data is handled by: 01_seed_firing_types.sql, 02_seed_shifts.sql,
+-- 03_seed_admin.sql, 04_seed_operator.sql, 06_seed_fuel_types.sql

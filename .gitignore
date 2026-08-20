@@ -1,0 +1,68 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+.venv
+env/
+venv/
+ENV/
+
+# Database files (Development
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project Specific - Database files
+production.db
+kiln_monitoring.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Binary / Binary archives
+*.zip
+!postgrest.zip
+*.rar
+!sql/*.zip
+!xls/*.zip
+
+# Node
+node_modules/
+
+# Authoritative source workbooks (design reference only — NOT committed to git)
+# Files in xls/real data/ are the plant's native Excel workbooks used purely as
+# the design/source-of-truth reference during development. They are protected
+# source data (Master Rules §44) and must never be committed to the repo.
+xls/real data/
+
+# Cleaned/consolidated workbooks (design aid only — NOT committed to git)
+# xls/consolidated/ holds operator-code-normalized copies built from xls/real data/
+# for detailed review. Same rule as above: local design artifact, never in git.
+xls/consolidated/

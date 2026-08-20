@@ -1,0 +1,16 @@
+legacy_code,legacy_name_observed,canonical_person,new_code,needs_review,notes
+1,سید حسین جلالی,سید حسین جلالی,1,,consistent across Dryer+Kiln 1398-1404
+2,وحید عموزاد,وحید عموزاد,2,,consistent
+3,عسگری قاسمی,عسگری قاسمی,3,,consistent
+4,"رجب علی پناه / سید حسین جلالی",رجب علی پناه,4,YES,"CODE sheet lists BOTH names under code 4 — same code shared by two persons; owner must pick the primary. Proposed: رجب علی پناه (since code 1 already = سید حسین جلالی)."
+5,"حسن یخکشی / وحید عموزاد",حسن یخکشی,5,YES,"CODE sheet lists BOTH names under code 5 — same code shared by two persons; owner must pick the primary. Proposed: حسن یخکشی (since code 2 already = وحید عموزاد)."
+6,عسگری قاسمی,عسگری قاسمی,3,YES,duplicate of code 3 (same person) -> collapses to new code 3
+7,حسن یخکشی,حسن یخکشی,5,YES,duplicate of code 5 (same person) -> collapses to new code 5
+8,رجب علی پناه,رجب علی پناه,4,YES,duplicate of code 4 (same person) -> collapses to new code 4
+9,,UNMAPPED,,YES,CODE sheet has code 9 with no name anywhere -> drop (unused)
+10,,UNMAPPED,,YES,CODE sheet has code 10 with no name anywhere -> drop (unused)
+11,,UNMAPPED,,YES,CODE sheet has code 11 with no name anywhere -> drop (unused)
+12,,UNMAPPED,,YES,code present in Kiln 1398-1403 but no name -> drop (unused)
+13,,UNMAPPED,,YES,code present in Kiln 1398-1403 but no name -> drop (unused)
+14,,UNMAPPED,,YES,code present in Kiln 1398-1403 but no name -> drop (unused)
+15,,UNMAPPED,,YES,code present in Kiln 1398-1403 but no name -> drop (unused)

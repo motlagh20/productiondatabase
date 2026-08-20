@@ -1,0 +1,6 @@
+legacy_product_code,occurrences,source_file,diagnosis,proposed_action,needs_review,notes
+90000001,3,Kiln-1399.xlsx,unmapped (absent from CODE lookup),review-queue,YES,not a typo of any standard code; owner must decide real product
+80,1,Kiln-1399.xlsx,unmapped / data error (outside code scheme),review-queue,YES,far outside scheme; likely mis-entry
+9100000,1,Kiln-1399.xlsx,typo (one digit short),auto-correct -> 91000001,,corrects to standard code سفال خودرنگ
+910000001,1,Kiln-1403.xlsm,typo (one digit long),auto-correct -> 91000001,,corrects to standard code سفال خودرنگ
+940000002,1,Kiln-1403.xlsm,typo (one digit long),auto-correct -> 94000002,,corrects to standard code بخته دو باررفته

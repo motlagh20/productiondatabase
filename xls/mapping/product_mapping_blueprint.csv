@@ -1,0 +1,29 @@
+legacy_product_code,legacy_name,product_type,glaze_status,canonical_new_code,notes
+A,تیزه - سفال خودرنگ مخلوط,تیزه,خودرنگ,P-TIZEH-KHODRANG,letter code; composite of type+glaze
+B,تیزه - سفال اخرا مخلوط,تیزه,اخرا,P-TIZEH-AKHRA,letter code
+C,تیزه - سفال سبز مخلوط,تیزه,سبز,P-TIZEH-SABZ,letter code
+D,تیزه - سفال نوک مدادی مخلوط,تیزه,نوک مدادی,P-TIZEH-NOKMODADI,letter code
+E,تیزه - سفال بیرنگ مخلوط,تیزه,بیرنگ,P-TIZEH-BIRANG,letter code
+91000001,سفال خودرنگ,سفال,خودرنگ,P-SOFAL-KHODRANG,numeric composite code
+91000002,سفال اخرا,سفال,اخرا,P-SOFAL-AKHRA,numeric composite code
+91000003,سفال سبز,سفال,سبز,P-SOFAL-SABZ,numeric composite code
+91000004,سفال نوک مدادی,سفال,نوک مدادی,P-SOFAL-NOKMODADI,numeric composite code
+91000005,سفال بیرنگ,سفال,بیرنگ,P-SOFAL-BIRANG,numeric composite code
+92000001,تیزه خودرنگ,تیزه,خودرنگ,P-TIZEH-KHODRANG,collision with code A (same type+glaze) -> both map to same canonical product
+92000002,تیزه اخرا,تیزه,اخرا,P-TIZEH-AKHRA,collision with code B
+92000003,تیزه سبز,تیزه,سبز,P-TIZEH-SABZ,collision with code C
+92000004,تیزه نوک مدادی,تیزه,نوک مدادی,P-TIZEH-NOKMODADI,collision with code D
+92000005,تیزه بیرنگ,تیزه,بیرنگ,P-TIZEH-BIRANG,collision with code E
+93100001,سفال نیمه خودرنگ,سفال,نیمه خودرنگ,P-SOFAL-NIMEH-KHODRANG,numeric composite code
+94000002,بخته دو باررفته,بخته,دو بار رفته,P-BAKHTEH-2BAR,distinct product (fired twice)
+01,سفال اخرا (incl. اخراء typo),سفال,اخرا,P-SOFAL-AKHRA,Packing legacy code (1-28 scheme); 282 سفال اخراء + 210 اخرا + 9 اخراء(typo) -> normalize spelling to اخرا
+02,تیزه اخرا (incl. اخراء typo),تیزه,اخرا,P-TIZEH-AKHRA,Packing legacy code; 23 تیزه اخراء + 16 اخرا(typo)
+03,سفال خودرنگ,سفال,خودرنگ,P-SOFAL-KHODRANG,Packing legacy code; 99% سفال خودرنگ (35168 خودرنگ+12912 سفال خودرنگ); noise: اخرا(4), 56(1) -> canonical collision with 91000001
+04,تیزه خودرنگ,تیزه,خودرنگ,P-TIZEH-KHODRANG,Packing legacy code; 1757 خودرنگ + 449 تیزه خودرنگ; canonical collision with A/92000001
+4,تیزه خودرنگ,تیزه,خودرنگ,P-TIZEH-KHODRANG,Packing legacy code; 1052 تیزه خودرنگ + 9 سفال خودرنگ(typo)?) -> canonical collision with 04/A/92000001
+16,تیزه پنجه ای خودرنگ,تیزه پنجه ای,خودرنگ,P-TIZEH-PANJEH-KHODRANG,Packing legacy code; 2222 پنجه ای خودرنگ + 447 تیزه پنجه ای خودرنگ + 20 سفال خودرنگ(typo); NEW product type (پنجه ای) not in Dryer/Kiln scheme
+17,تیزه پنجه ای اخرا,تیزه پنجه ای,اخرا,P-TIZEH-PANJEH-AKHRA,Packing legacy code; 18 تیزه پنجه ای اخراء + 10 پنجه ای اخراء(typo); NEW product type
+20,پنجه ای سبز,پنجه ای,سبز,P-PANJEH-SABZ,Packing legacy code; 61 پنجه ای سبز + 2 سفال مشکی(typo); TYPE AMBIGUOUS (type col mostly سفال) -> REVIEW before finalizing
+91000000,سفال خودرنگ (common code),سفال,خودرنگ,P-SOFAL-KHODRANG,Setting_Setting.csv product code (992 rows); common/short form of 91000001 -> canonical collision
+81000000,محصول لعابدار/نامشخص,نامشخص,نامشخص,P-GLAZED-UNKNOWN,Setting_Setting.csv product code (32 rows); needs owner confirmation of glaze/type -> REVIEW
+92000000,تیزه خودرنگ (common code),تیزه,خودرنگ,P-TIZEH-KHODRANG,Setting_Setting.csv product code (17 rows); common/short form of 92000001 -> canonical collision

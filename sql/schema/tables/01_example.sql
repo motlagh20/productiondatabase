@@ -1,0 +1,5 @@
+CREATE TABLE app.example (
+  id BIGSERIAL PRIMARY KEY,
+  name TEXT NOT NULL
+);
+

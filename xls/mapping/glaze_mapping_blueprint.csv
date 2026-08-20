@@ -1,0 +1,8 @@
+legacy_glaze_value,canonical_glaze,new_code,needs_review,notes
+خودرنگ,خودرنگ,G-KHODRANG,,no glaze applied (7506 occurrences)
+سفال,سفال,G-SOFAL,,glazed (134)
+لعاب,لعاب,G-LAAB,,glazed (3)
+آجر,آجر,G-AJAR,,glazed (2)
+اخرا,اخرا,G-AKHRA,,glazed (1)
+س,سفال,YES,likely typo for سفال -> normalize to G-SOFAL
+10:25,UNMAPPED,YES,stray time-like value in glaze column -> review/quarantine

@@ -1,0 +1,2 @@
+-- API compatibility layer - all definitions moved to 00_schema.sql
+-- This file kept for backward compatibility only.
