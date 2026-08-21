@@ -39,9 +39,12 @@ docker compose -f docker-compose.data.yml up -d   # postgres:16, port 5433, volu
 
 ## 5. Export review_queue for plant handoff
 ```bash
-python export_review_csv.py   # -> xls/consolidated/review_queue_export.csv (Farsi labels, UTF-8 BOM)
+python export_review_csv.py
+# -> xls/consolidated/review_queue_export.xlsx  (Farsi, RTL, opens cleanly in Excel)
+# -> xls/consolidated/review_queue_export.csv   (UTF-8 BOM, for tooling)
 ```
 This is the QA batch the plant must review (1,322 rows in first load: 1,153 Warning, 169 Invalid).
+Prefer the **.xlsx** for handing to plant staff (guaranteed Persian/RTL rendering); the CSV is for pipelines.
 No auto-correction is applied — flagged rows stay in `review_queue` per owner directive.
 
 ## Validation model
