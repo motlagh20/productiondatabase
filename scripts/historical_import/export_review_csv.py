@@ -57,13 +57,16 @@ rows=cur.fetchall()
 
 # load kiln-temp proposed corrections (+ 3 nearest healthy same-zone neighbors + applied mean + reason)
 cur.execute("""SELECT c.raw_value, c.proposed_value, c.neighbor_1, c.neighbor_2, c.neighbor_3,
-                      r.corrected_value, c.correction_reason, c.corrected_by
+                      r.corrected_value, c.correction_reason, c.corrected_by,
+                      c.zone_group, c.zone_reading
                  FROM kiln_temp_correction c
                  JOIN kiln_temperature_readings r ON r.id = c.reading_id""")
 ktc_map={}
+ktc_rows=[]
 for r in cur.fetchall():
     nbrs=[x for x in (r[1],r[2],r[3]) if x is not None]   # neighbor_1..3
     ktc_map[str(r[0])]={"prop":r[1],"nbrs":nbrs,"mean":r[5],"reason":r[6],"by":r[7]}
+    ktc_rows.append({"raw":r[0],"mean":r[5],"reason":r[6],"field":f"{r[8]}.{r[9]}"})
 conn.close()
 
 # group + count (resolved rows folded in, tracked separately)
@@ -87,6 +90,25 @@ for (t,f,raw,cls),g in grp.items():
     reason_s = g["reason"] if g.get("reason") else (str(ktc["reason"]) if (ktc and ktc.get("reason")) else "")
     cleaned_s = str(g["cleaned"]) if g.get("cleaned") is not None else ""
     out.append([t,f,raw,g["n"],CLASS_FA.get(cls,cls),diag,act,needs,note,nbr_s,mean_s,reason_s,cleaned_s])
+
+# Append kiln-temp corrections NOT already covered by review_queue (e.g. low <100 rows
+# that validate_anomalies.py did not flag). Each is a resolved, mean-applied row.
+seen_raw=set(str(r[2]) for r in out if str(r[1]).startswith("kiln_temp"))
+for k in ktc_rows:
+    if str(k["raw"]) in seen_raw:
+        continue
+    field=k["field"]; raw=k["raw"]
+    mean_s=str(k["mean"]) if k["mean"] is not None else ""
+    nbrs=ktc_map[str(raw)]["nbrs"] if str(raw) in ktc_map else []
+    nbr_s=" | ".join(str(x) for x in nbrs)
+    # field is like 'zone.01'; prepend 'kiln_temp.' to match the review_queue convention
+    col=f"kiln_temp.{field}"
+    cls="نامعتبر" if (isinstance(raw,(int,float)) and raw>1200) else "هشدار"
+    out.append(["kiln_temperature_readings",col,raw,1,cls,
+                "دمای کوره خارج از محدوده مجاز (۱۰۰–۱۲۰۰ درجه)",
+                "بررسی و تأیید پیشنهاد توسط کارخونه (بدون اعمال خودکار)",
+                "خیر (حل‌شده)", f"مقدار {raw} خارج از محدوده؛ با میانگین ۳ مقدار سالم همین زون جایگزین شد",
+                nbr_s, mean_s, "mean_of_neighbors", ""])
 # sort: open (needs review) first, then resolved; Invalid first within each
 out.sort(key=lambda r:(0 if r[7].startswith("بله") else 1, 0 if r[4].startswith("نامعتبر") else 1, -r[3]))
 
