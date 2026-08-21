@@ -110,7 +110,8 @@ CREATE TABLE kiln_temperature_readings (
     push_id        BIGINT NOT NULL REFERENCES kiln_pushes(id) ON DELETE CASCADE,
     zone_group     TEXT NOT NULL,         -- exhaust/preheat/thermostat/zone/rapid/bottom
     zone_reading   TEXT NOT NULL,         -- index 00-07 / A/01/B/02 / 1-2
-    value          NUMERIC,
+    value          NUMERIC,               -- RAW as imported (never overwritten)
+    corrected_value NUMERIC,               -- owner-confirmed correction; NULL until applied
     source         TEXT DEFAULT 'historical'
 );
 

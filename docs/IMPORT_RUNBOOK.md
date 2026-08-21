@@ -51,10 +51,12 @@ No auto-correction is applied — flagged rows stay in `review_queue` per owner 
 
 ## Validation model
 Every row is classified: `Valid | Warning | Invalid | Duplicate | Unmapped | NeedsReview`.
-Flagged rows land in `review_queue` (never auto-fixed). Counts observed in first load:
-- `Invalid` (temp>1200 ×10 typo, wagon>80 typo): ~151
-- chamber>40, wagon>80: ~300 combined
-- All resolved post-build per M1/M2 (physical-ledger correction cycle).
+Flagged rows land in `review_queue`. Kiln-temp `Invalid` rows are corrected via the
+neighbor method into `kiln_temperature_readings.corrected_value` (raw `value` preserved);
+the other flagged classes (wagon>80, chamber>40, grade1>total, humidity) remain OPEN
+per owner directive ("واگنها رو هم تغییر نده"). Counts after first load + kiln fix:
+- `Invalid`: 134 resolved (kiln temp ×10/×100 typo, neighbor-corrected), 35 still open
+- `Warning`: 1153 open (wagon>80, chamber>40, low-temp, etc.)
 
 ## Idempotency
 All fact tables use `natural_key UNIQUE` + `ON CONFLICT DO UPDATE`. Re-running merges, never duplicates. 1397 (months 11–12 missing) loads idempotently when completed post-build.
