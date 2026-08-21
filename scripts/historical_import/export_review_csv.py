@@ -54,9 +54,11 @@ cur.execute("""SELECT table_name, field_name, raw_value, issue_class, suggested_
                FROM review_queue""")
 rows=cur.fetchall()
 
-# load kiln-temp proposed corrections (nearest valid same-zone value, NOT applied)
-cur.execute("SELECT raw_value, proposed_value FROM kiln_temp_correction")
-ktc_map={str(r[0]): r[1] for r in cur.fetchall()}
+# load kiln-temp proposed corrections (+ 3 nearest healthy same-zone neighbors)
+cur.execute("SELECT raw_value, proposed_value, neighbor_1, neighbor_2, neighbor_3 FROM kiln_temp_correction")
+ktc_map={}
+for r in cur.fetchall():
+    ktc_map[str(r[0])]={"prop":r[1],"nbrs":[x for x in (r[2],r[3],r[4]) if x is not None]}
 conn.close()
 
 # group + count (resolved rows folded in, tracked separately)
@@ -71,11 +73,15 @@ out=[]
 for (t,f,raw,cls),g in grp.items():
     diag,act,note=diagnose(f,cls,raw,g["fix"])
     needs = "خیر (حل‌شده)" if g["resolved"]>0 else "بله"
-    out.append([t,f,raw,g["n"],CLASS_FA.get(cls,cls),diag,act,needs,note])
+    # neighbor columns only meaningful for kiln-temp; pull from ktc_map if present
+    ktc=ktc_map.get(str(raw))
+    nbrs = ktc["nbrs"] if ktc else []
+    nbr_s = " | ".join(str(x) for x in nbrs) if nbrs else ""
+    out.append([t,f,raw,g["n"],CLASS_FA.get(cls,cls),diag,act,needs,note,nbr_s])
 # sort: open (needs review) first, then resolved; Invalid first within each
 out.sort(key=lambda r:(0 if r[7].startswith("بله") else 1, 0 if r[4].startswith("نامعتبر") else 1, -r[3]))
 
-HEADERS=["جدول","ستون","مقدار_خام","تعداد_تکرار","وضعیت","عیب‌شناسی","اقدام_پیشنهادی","نیاز_به_بررسی","یادداشت"]
+HEADERS=["جدول","ستون","مقدار_خام","تعداد_تکرار","وضعیت","عیب‌شناسی","اقدام_پیشنهادی","نیاز_به_بررسی","یادداشت","مقادیر_متناظر_سالم"]
 
 # 1. XLSX
 if HAVE_XLSX:

@@ -126,6 +126,9 @@ CREATE TABLE kiln_temp_correction (
     zone_reading    TEXT NOT NULL,
     raw_value       NUMERIC,
     proposed_value  NUMERIC,               -- nearest valid same-zone value in other pushes
+    neighbor_1      NUMERIC,               -- 3 nearest healthy same-zone values (for plant review)
+    neighbor_2      NUMERIC,
+    neighbor_3      NUMERIC,
     applied         BOOLEAN DEFAULT FALSE, -- always FALSE until plant confirms
     note            TEXT
 );

@@ -79,9 +79,15 @@ for rid,pid,zg,zr,v in flagged:
             note=f"raw {v} -> candidate {best} (in-range); close to healthy neighbor (dist {int(best_dist)}) -> propose {best}"
         else:
             note=f"raw {v} -> candidate {best} but FAR from healthy neighbor (dist {int(best_dist)}); needs plant review"
-    cur.execute("""INSERT INTO kiln_temp_correction(reading_id,push_id,zone_group,zone_reading,raw_value,proposed_value,applied,note)
-                   VALUES(%s,%s,%s,%s,%s,%s,FALSE,%s)""",
-                (rid,pid,zg,zr,v,chosen,note))
+    # 3 nearest healthy same-zone values (regardless of candidate confidence)
+    nbrs=sorted(neigh, key=lambda x: abs(x-float(v)))[:3] if neigh else []
+    n1=n2=n3=None
+    if len(nbrs)>0: n1=nbrs[0]
+    if len(nbrs)>1: n2=nbrs[1]
+    if len(nbrs)>2: n3=nbrs[2]
+    cur.execute("""INSERT INTO kiln_temp_correction(reading_id,push_id,zone_group,zone_reading,raw_value,proposed_value,neighbor_1,neighbor_2,neighbor_3,applied,note)
+                   VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,FALSE,%s)""",
+                (rid,pid,zg,zr,v,chosen,n1,n2,n3,note))
     ins+=1
 conn.commit()
 
