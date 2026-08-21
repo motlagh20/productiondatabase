@@ -21,9 +21,11 @@ def diagnose(field, cls, raw, fix):
     """Return (diagnosis_fa, action_fa, note_fa)."""
     raw_s=str(raw)
     if cls=="Invalid" and "kiln_temp" in field:
-        return ("دمای کوره بالای ۱۲۰۰ درجه (نامعتبر)",
-                "پیشنهاد تقسیم بر ۱۰ — منوط به تأیید کارخونه (بدون تغییر خودکار)",
-                f"مقدار {raw_s} احتمالاً ×۱۰ اشتباه سنسور است")
+        prop=ktc_map.get(raw_s)
+        prop_s=f" → پیشنهاد {prop}" if prop is not None else " (همسایه سالم یافت نشد)"
+        return ("دمای کوره خارج از محدوده مجاز (۱۰۰–۱۲۰۰ درجه)",
+                "بررسی و تأیید پیشنهاد توسط کارخونه (بدون اعمال خودکار)",
+                f"مقدار {raw_s} خارج از محدوده است{prop_s} — عدد سمت راست یا چپ اشتباه مشخص نیست، لذا نزدیک‌ترین مقدار سالم همین زون در پوش‌های دیگر در نظر گرفته شد")
     if cls=="Invalid" and "grade1" in field:
         return ("درجه ۱ بزرگتر از کل تولید (نامعتبر)",
                 "بررسی توسط کارخونه",
@@ -50,7 +52,12 @@ def diagnose(field, cls, raw, fix):
 conn=psycopg2.connect(**CONN); cur=conn.cursor()
 cur.execute("""SELECT table_name, field_name, raw_value, issue_class, suggested_fix
                FROM review_queue""")
-rows=cur.fetchall(); conn.close()
+rows=cur.fetchall()
+
+# load kiln-temp proposed corrections (nearest valid same-zone value, NOT applied)
+cur.execute("SELECT raw_value, proposed_value FROM kiln_temp_correction")
+ktc_map={str(r[0]): r[1] for r in cur.fetchall()}
+conn.close()
 
 # group + count
 grp=defaultdict(lambda:{"n":0,"cls":None,"fix":None})

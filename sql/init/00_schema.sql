@@ -114,6 +114,21 @@ CREATE TABLE kiln_temperature_readings (
     source         TEXT DEFAULT 'historical'
 );
 
+-- Proposed correction for out-of-range kiln temps (owner directive: NO auto-apply).
+-- For each flagged reading, the nearest valid value of the SAME (zone_group, zone_reading)
+-- in OTHER pushes is recorded as `proposed_value`. Plant reviews before any apply.
+CREATE TABLE kiln_temp_correction (
+    id              BIGSERIAL PRIMARY KEY,
+    reading_id      BIGINT NOT NULL REFERENCES kiln_temperature_readings(id),
+    push_id         BIGINT NOT NULL,
+    zone_group      TEXT NOT NULL,
+    zone_reading    TEXT NOT NULL,
+    raw_value       NUMERIC,
+    proposed_value  NUMERIC,               -- nearest valid same-zone value in other pushes
+    applied         BOOLEAN DEFAULT FALSE, -- always FALSE until plant confirms
+    note            TEXT
+);
+
 -- ============================================================
 -- 5. SETTING (4-layer, ADR-0005)
 -- ============================================================
