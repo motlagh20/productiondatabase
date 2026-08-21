@@ -4,12 +4,19 @@
 > **Principle:** read-only on `xls/real data/`; no fabricated values; config-driven bounds; idempotent.
 
 ## Prerequisites
-- PostgreSQL 16 (or Docker: `docker run -d --name pd_pg -e POSTGRES_PASSWORD=test -p 5433:5432 postgres:16`)
-- Python 3.11+ with `openpyxl`, `xlrd`, `psycopg2-binary`
-- Source workbooks at `C:/Users/Mohammad/Nextcloud/Projects/Trae/ProductionDatabase/xls/real data/`
+- Docker (for persistent DB) OR local PostgreSQL 16.
+- Python 3.11+ with `openpyxl`, `xlrd`, `psycopg2-binary`.
+- Source workbooks at `C:/Users/Mohammad/Nextcloud/Projects/Trae/ProductionDatabase/xls/real data/`.
 
-## Steps
-1. **Create schema** (idempotent dev reset available):
+## 0. Start the persistent warehouse DB
+```bash
+docker compose -f docker-compose.data.yml up -d   # postgres:16, port 5433, volume pgdata_hist (survives restart)
+# connection: host=localhost port=5433 user=postgres password=test db=postgres
+# stop later:  docker compose -f docker-compose.data.yml down   (data preserved in volume)
+# full wipe:   docker compose -f docker-compose.data.yml down -v  (DESTROYS loaded data)
+```
+
+## 1. Create schema (dev reset available)
    ```bash
    psql -f sql/init/00_schema.sql          # creates 18 tables + seeds config
    # dev only: psql -f sql/init/99_reset.sql  # DROP SCHEMA public CASCADE first
@@ -29,6 +36,13 @@
    ```bash
    python verify_load.py
    ```
+
+## 5. Export review_queue for plant handoff
+```bash
+python export_review_csv.py   # -> xls/consolidated/review_queue_export.csv (Farsi labels, UTF-8 BOM)
+```
+This is the QA batch the plant must review (1,322 rows in first load: 1,153 Warning, 169 Invalid).
+No auto-correction is applied — flagged rows stay in `review_queue` per owner directive.
 
 ## Validation model
 Every row is classified: `Valid | Warning | Invalid | Duplicate | Unmapped | NeedsReview`.

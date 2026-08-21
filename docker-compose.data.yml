@@ -1,0 +1,20 @@
+# Persistent PostgreSQL for the historical data warehouse (import + review).
+# Separate from docker-compose.yml (the production PostgREST stack) so the
+# import pipeline (port 5433, user postgres, db postgres) runs isolated and
+# durable. Data persists in the `pgdata_hist` volume across container restarts.
+services:
+  postgres_hist:
+    image: postgres:16
+    container_name: productiondb-data
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata_hist:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  pgdata_hist:
