@@ -130,6 +130,8 @@ CREATE TABLE kiln_temp_correction (
     neighbor_2      NUMERIC,
     neighbor_3      NUMERIC,
     applied         BOOLEAN DEFAULT FALSE, -- always FALSE until plant confirms
+    correction_reason TEXT,                -- structured reason: 'mean_of_neighbors' etc.
+    corrected_by    TEXT DEFAULT 'system',  -- who/what applied the correction
     note            TEXT
 );
 

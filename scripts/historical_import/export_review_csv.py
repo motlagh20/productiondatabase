@@ -54,11 +54,15 @@ cur.execute("""SELECT table_name, field_name, raw_value, issue_class, suggested_
                FROM review_queue""")
 rows=cur.fetchall()
 
-# load kiln-temp proposed corrections (+ 3 nearest healthy same-zone neighbors)
-cur.execute("SELECT raw_value, proposed_value, neighbor_1, neighbor_2, neighbor_3 FROM kiln_temp_correction")
+# load kiln-temp proposed corrections (+ 3 nearest healthy same-zone neighbors + applied mean + reason)
+cur.execute("""SELECT c.raw_value, c.proposed_value, c.neighbor_1, c.neighbor_2, c.neighbor_3,
+                      r.corrected_value, c.correction_reason, c.corrected_by
+                 FROM kiln_temp_correction c
+                 JOIN kiln_temperature_readings r ON r.id = c.reading_id""")
 ktc_map={}
 for r in cur.fetchall():
-    ktc_map[str(r[0])]={"prop":r[1],"nbrs":[x for x in (r[2],r[3],r[4]) if x is not None]}
+    nbrs=[x for x in (r[1],r[2],r[3]) if x is not None]   # neighbor_1..3
+    ktc_map[str(r[0])]={"prop":r[1],"nbrs":nbrs,"mean":r[5],"reason":r[6],"by":r[7]}
 conn.close()
 
 # group + count (resolved rows folded in, tracked separately)
@@ -73,15 +77,16 @@ out=[]
 for (t,f,raw,cls),g in grp.items():
     diag,act,note=diagnose(f,cls,raw,g["fix"])
     needs = "خیر (حل‌شده)" if g["resolved"]>0 else "بله"
-    # neighbor columns only meaningful for kiln-temp; pull from ktc_map if present
     ktc=ktc_map.get(str(raw))
     nbrs = ktc["nbrs"] if ktc else []
     nbr_s = " | ".join(str(x) for x in nbrs) if nbrs else ""
-    out.append([t,f,raw,g["n"],CLASS_FA.get(cls,cls),diag,act,needs,note,nbr_s])
+    mean_s = str(ktc["mean"]) if (ktc and ktc.get("mean") is not None) else ""
+    reason_s = str(ktc["reason"]) if (ktc and ktc.get("reason")) else ""
+    out.append([t,f,raw,g["n"],CLASS_FA.get(cls,cls),diag,act,needs,note,nbr_s,mean_s,reason_s])
 # sort: open (needs review) first, then resolved; Invalid first within each
 out.sort(key=lambda r:(0 if r[7].startswith("بله") else 1, 0 if r[4].startswith("نامعتبر") else 1, -r[3]))
 
-HEADERS=["جدول","ستون","مقدار_خام","تعداد_تکرار","وضعیت","عیب‌شناسی","اقدام_پیشنهادی","نیاز_به_بررسی","یادداشت","مقادیر_متناظر_سالم"]
+HEADERS=["جدول","ستون","مقدار_خام","تعداد_تکرار","وضعیت","عیب‌شناسی","اقدام_پیشنهادی","نیاز_به_بررسی","یادداشت","مقادیر_متناظر_سالم","مقدار_اصلاح‌شده_میانگین","علت_اصلاح"]
 
 # 1. XLSX
 if HAVE_XLSX:
