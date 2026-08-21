@@ -50,7 +50,7 @@ def diagnose(field, cls, raw, fix):
     return (CLASS_FA.get(cls,cls), "بررسی توسط کارخونه", raw_s)
 
 conn=psycopg2.connect(**CONN); cur=conn.cursor()
-cur.execute("""SELECT table_name, field_name, raw_value, issue_class, suggested_fix
+cur.execute("""SELECT table_name, field_name, raw_value, issue_class, suggested_fix, resolved
                FROM review_queue""")
 rows=cur.fetchall()
 
@@ -59,19 +59,21 @@ cur.execute("SELECT raw_value, proposed_value FROM kiln_temp_correction")
 ktc_map={str(r[0]): r[1] for r in cur.fetchall()}
 conn.close()
 
-# group + count
-grp=defaultdict(lambda:{"n":0,"cls":None,"fix":None})
-for t,f,raw,cls,fix in rows:
+# group + count (resolved rows folded in, tracked separately)
+grp=defaultdict(lambda:{"n":0,"cls":None,"fix":None,"resolved":0})
+for t,f,raw,cls,fix,res in rows:
     key=(t,f,str(raw),cls)
     grp[key]["n"]+=1
     grp[key]["cls"]=cls; grp[key]["fix"]=fix
+    if res: grp[key]["resolved"]+=1
 
 out=[]
 for (t,f,raw,cls),g in grp.items():
     diag,act,note=diagnose(f,cls,raw,g["fix"])
-    out.append([t,f,raw,g["n"],CLASS_FA.get(cls,cls),diag,act,"بله",note])
-# sort: Invalid first, then by count desc
-out.sort(key=lambda r:(0 if r[4].startswith("نامعتبر") else 1, -r[3]))
+    needs = "خیر (حل‌شده)" if g["resolved"]>0 else "بله"
+    out.append([t,f,raw,g["n"],CLASS_FA.get(cls,cls),diag,act,needs,note])
+# sort: open (needs review) first, then resolved; Invalid first within each
+out.sort(key=lambda r:(0 if r[7].startswith("بله") else 1, 0 if r[4].startswith("نامعتبر") else 1, -r[3]))
 
 HEADERS=["جدول","ستون","مقدار_خام","تعداد_تکرار","وضعیت","عیب‌شناسی","اقدام_پیشنهادی","نیاز_به_بررسی","یادداشت"]
 
