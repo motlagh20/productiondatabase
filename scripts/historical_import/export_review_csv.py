@@ -119,7 +119,10 @@ for (t,f,raw,cls),g in grp.items():
     mean_s = str(ktc["mean"]) if (ktc and ktc.get("mean") is not None) else (str(dhc["mean"]) if (dhc and dhc.get("mean") is not None) else "")
     reason_s = g["reason"] if g.get("reason") else (str(ktc["reason"]) if (ktc and ktc.get("reason")) else (str(dhc["reason"]) if (dhc and dhc.get("reason")) else ""))
     cleaned_s = str(g["cleaned"]) if g.get("cleaned") is not None else ""
-    date_err = extract_date(g["nk"]) if (("wagon" in f) or ("incoming_car" in f)) else ""
+    # Date of the erroneous record: first '|'-segment of natural_key. Applied to ALL
+    # rows that carry a natural_key (owner directive: every item needing review must
+    # show its date so it can be traced back to the physical ledgers).
+    date_err = extract_date(g["nk"]) if g["nk"] else ""
     out.append([t,f,raw,g["n"],CLASS_FA.get(cls,cls),diag,act,needs,note,nbr_s,mean_s,reason_s,cleaned_s,date_err])
 
 # Append kiln-temp corrections NOT already covered by review_queue (e.g. low <100 rows
