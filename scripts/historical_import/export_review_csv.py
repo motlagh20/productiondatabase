@@ -93,16 +93,17 @@ for (t,f,raw,cls),g in grp.items():
 
 # Append kiln-temp corrections NOT already covered by review_queue (e.g. low <100 rows
 # that validate_anomalies.py did not flag). Each is a resolved, mean-applied row.
-seen_raw=set(str(r[2]) for r in out if str(r[1]).startswith("kiln_temp"))
+# Dedup on (field, raw) — not raw alone — because the same raw can appear under a
+# different zone field in review_queue (e.g. kiln_temp.bottom vs kiln_temp.bottom.01).
+seen=set((str(r[1]), str(r[2])) for r in out if str(r[1]).startswith("kiln_temp"))
 for k in ktc_rows:
-    if str(k["raw"]) in seen_raw:
+    col=f"kiln_temp.{k['field']}"
+    if (col, str(k["raw"])) in seen:
         continue
-    field=k["field"]; raw=k["raw"]
+    raw=k["raw"]
     mean_s=str(k["mean"]) if k["mean"] is not None else ""
     nbrs=ktc_map[str(raw)]["nbrs"] if str(raw) in ktc_map else []
     nbr_s=" | ".join(str(x) for x in nbrs)
-    # field is like 'zone.01'; prepend 'kiln_temp.' to match the review_queue convention
-    col=f"kiln_temp.{field}"
     cls="نامعتبر" if (isinstance(raw,(int,float)) and raw>1200) else "هشدار"
     out.append(["kiln_temperature_readings",col,raw,1,cls,
                 "دمای کوره خارج از محدوده مجاز (۱۰۰–۱۲۰۰ درجه)",
