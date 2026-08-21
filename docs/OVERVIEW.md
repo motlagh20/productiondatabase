@@ -60,6 +60,12 @@ Deliverable: `C:\Users\Mohammad\Desktop\review_queue_v4.xlsx` (705 grouped rows)
 **27 rows remain `نیاز_به_بررسی=بله`** = 20 wagon + 7 chamber — plant must verify against
 physical ledgers (owner authority required for final values).
 
+## M4 — Clean data layer (COMPLETE 2026-08-21)
+
+Four `COALESCE(corrected, raw)` **views** expose the corrected data for the app without
+touching raw: [`docs/M4_CLEAN_DATA_LAYER.md`](docs/M4_CLEAN_DATA_LAYER.md).
+`v_clean_packing` / `v_clean_kiln_temps` / `v_clean_dryer_readings` / `v_open_anomalies`.
+The last isolates the **27 flag-only** rows (wagon/chamber) needing ledger review.
 
 `operator_mapping_blueprint.csv`, `product_mapping_blueprint.csv`, `glaze_mapping_blueprint.csv` — the `legacy_code → canonical` maps extracted from the authoritative workbooks (inputs to M2 import spec).
 

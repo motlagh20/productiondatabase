@@ -20,7 +20,8 @@ plant needs to review each flagged item against the physical ledgers.
 | 3 | `packing_records.grade1 > total` (trailing zero) | ÷10 (`1350→135`) | **9** | ✅ | `packing_records.corrected_grade1` |
 | 4 | `kiln_temp.preheat = '5..'` (non-numeric) | mean of healthy same-push preheat (518) | **2** | ✅ | `review_queue.cleaned_value` |
 | 5 | Dirty strings (`718/`, `6+4`, `9+40`…) | strip non-digit (`6+0→600` rule) | **14** | ✅ | `review_queue.cleaned_value` |
-| | **TOTAL auto-corrected** | | **415** | | |
+| 6 | Kiln `kiln_temp.zone` (non-loaded temps) | mean of 3 healthy same-push kiln temps | **82** | ✅ | `review_queue.cleaned_value` |
+| | **TOTAL auto-corrected** | | **497** | | |
 
 ### Flag-only (NO value change — per owner directive "واگن‌ها رو تغییر نده فعلاً")
 These keep their original (likely mistyped) value; only a flag + record date is attached
