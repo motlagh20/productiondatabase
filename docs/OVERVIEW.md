@@ -41,7 +41,26 @@ We profiled the **authoritative source workbooks** (`xls/real data/`, 22 files, 
 ## Cleaned workbooks (local, NOT in git)
 `xls/consolidated/` holds operator/product/glaze-normalized copies for detailed review (git-ignored per owner: workbooks are design references, never committed). `REVIEW_*.txt` files log flagged rows (typos, unmapped) for owner decision.
 
-## Migration mapping blueprints (`xls/mapping/`, in git)
+## M3 — Historical data cleaning (COMPLETE 2026-08-21)
+
+All import-time review-queue anomalies were resolved with **flag-only corrections**
+(raw preserved; `corrected_value`/`cleaned_value` added). Audit trail:
+[`docs/M3_DATA_CLEANING_REPORT.md`](docs/M3_DATA_CLEANING_REPORT.md).
+
+| Correction | Rows | Method |
+|---|---|---|
+| Kiln temp out-of-range | 381 | mean of 3 nearest healthy same-zone values |
+| Dryer humidity >100% | 9 | mean of 3 nearest healthy same-operation values |
+| grade1 trailing zero | 9 | ÷10 (`1350→135`) |
+| preheat `5..` non-numeric | 2 | mean of healthy same-push preheat (518) |
+| Dirty strings (`718/`,`6+4`…) | 14 | strip non-digit (`6+0→600` rule) |
+| **Flag-only (no change)** wagon/chamber | 27 | original value kept + record date for ledger check |
+
+Deliverable: `C:\Users\Mohammad\Desktop\review_queue_v4.xlsx` (705 grouped rows).
+**27 rows remain `نیاز_به_بررسی=بله`** = 20 wagon + 7 chamber — plant must verify against
+physical ledgers (owner authority required for final values).
+
+
 `operator_mapping_blueprint.csv`, `product_mapping_blueprint.csv`, `glaze_mapping_blueprint.csv` — the `legacy_code → canonical` maps extracted from the authoritative workbooks (inputs to M2 import spec).
 
 ## Open items before M0 sign-off
