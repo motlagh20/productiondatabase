@@ -85,6 +85,7 @@ CREATE TABLE dryer_readings (
     hour_offset   SMALLINT NOT NULL,       -- parsed from header row
     metric        TEXT NOT NULL CHECK (metric IN ('temp','humidity')),
     value         NUMERIC,
+    corrected_value NUMERIC,               -- owner-confirmed correction; NULL until applied
     source        TEXT DEFAULT 'historical'
 );
 
@@ -133,6 +134,24 @@ CREATE TABLE kiln_temp_correction (
     correction_reason TEXT,                -- structured reason: 'mean_of_neighbors' etc.
     corrected_by    TEXT DEFAULT 'system',  -- who/what applied the correction
     note            TEXT
+);
+
+-- Proposed correction for out-of-range dryer HUMIDITY values (owner directive 2026-08-21:
+-- "apply mean to all reported Invalid items"). For each flagged humidity reading
+-- (>100%), the mean of the 3 nearest healthy (0-100) humidity in the SAME operation_id
+-- is recorded as proposed_value and applied to dryer_readings.corrected_value.
+CREATE TABLE dryer_humidity_correction (
+    id              BIGSERIAL PRIMARY KEY,
+    reading_id      BIGINT NOT NULL REFERENCES dryer_readings(id),
+    operation_id    BIGINT NOT NULL,
+    raw_value       NUMERIC,
+    neighbor_1      NUMERIC,               -- 3 nearest healthy same-operation values
+    neighbor_2      NUMERIC,
+    neighbor_3      NUMERIC,
+    proposed_value  NUMERIC,
+    applied         BOOLEAN DEFAULT FALSE,
+    correction_reason TEXT,
+    corrected_by    TEXT DEFAULT 'system'
 );
 
 -- ============================================================

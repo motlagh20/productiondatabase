@@ -31,6 +31,11 @@ def diagnose(field, cls, raw, fix):
                 "بررسی توسط کارخونه",
                 f"مقدار درجه ۱ از کل بیشتر است: {raw_s}")
     if cls=="Invalid" and ("humidity" in field or "value" in field):
+        # '6+4' style dirty strings are not numeric; '>100' values are impossible for %
+        if any(ch not in "0123456789." for ch in raw_s):
+            return ("مقدار رطوبت نامخوانا (کاراکتر اضافه)",
+                    "تمیزسازی / بررسی توسط کارخونه",
+                    f"مقدار {raw_s} شامل کاراکتر غیرعددی است و قابل تفسیر به عنوان رطوبت نیست")
         return ("رطوبت بالای ۱۰۰٪ (نامعتبر)",
                 "بررسی توسط کارخونه",
                 "رطوبت نمی‌تواند بیشتر از ۱۰۰٪ باشد")
@@ -51,7 +56,7 @@ def diagnose(field, cls, raw, fix):
 
 conn=psycopg2.connect(**CONN); cur=conn.cursor()
 cur.execute("""SELECT table_name, field_name, raw_value, issue_class, suggested_fix, resolved,
-                      cleaned_value, correction_reason
+                      cleaned_value, correction_reason, natural_key
                FROM review_queue""")
 rows=cur.fetchall()
 
@@ -67,29 +72,55 @@ for r in cur.fetchall():
     nbrs=[x for x in (r[1],r[2],r[3]) if x is not None]   # neighbor_1..3
     ktc_map[str(r[0])]={"prop":r[1],"nbrs":nbrs,"mean":r[5],"reason":r[6],"by":r[7]}
     ktc_rows.append({"raw":r[0],"mean":r[5],"reason":r[6],"field":f"{r[8]}.{r[9]}"})
+
+# load dryer-humidity corrections (out-of-range humidity >100, mean of 3 healthy same-op)
+cur.execute("""SELECT c.raw_value, c.neighbor_1, c.neighbor_2, c.neighbor_3,
+                      r.corrected_value, c.correction_reason, c.corrected_by,
+                      r.operation_id
+                 FROM dryer_humidity_correction c
+                 JOIN dryer_readings r ON r.id = c.reading_id""")
+dhc_map={}
+dhc_rows=[]
+for r in cur.fetchall():
+    nbrs=[x for x in (r[1],r[2],r[3]) if x is not None]
+    dhc_map[str(r[0])]={"nbrs":nbrs,"mean":r[4],"reason":r[5],"by":r[6],"op":r[7]}
+    dhc_rows.append({"raw":r[0],"mean":r[4],"reason":r[5],"op":r[7]})
 conn.close()
 
 # group + count (resolved rows folded in, tracked separately)
-grp=defaultdict(lambda:{"n":0,"cls":None,"fix":None,"resolved":0,"cleaned":None,"reason":None})
-for t,f,raw,cls,fix,res,cleaned,reason in rows:
+grp=defaultdict(lambda:{"n":0,"cls":None,"fix":None,"resolved":0,"cleaned":None,"reason":None,"nk":set()})
+for t,f,raw,cls,fix,res,cleaned,reason,nk in rows:
     key=(t,f,str(raw),cls)
     grp[key]["n"]+=1
     grp[key]["cls"]=cls; grp[key]["fix"]=fix
     if res: grp[key]["resolved"]+=1
     if cleaned is not None: grp[key]["cleaned"]=cleaned
     if reason is not None: grp[key]["reason"]=reason
+    if nk is not None: grp[key]["nk"].add(str(nk))
+
+def extract_date(nk_set):
+    """First '|'-segment of any natural_key is the Jalali date of the erroneous record."""
+    for nk in nk_set:
+        if nk and "|" in nk:
+            return nk.split("|",1)[0]
+    return ""
 
 out=[]
 for (t,f,raw,cls),g in grp.items():
     diag,act,note=diagnose(f,cls,raw,g["fix"])
-    needs = "خیر (حل‌شده)" if g["resolved"]>0 else "بله"
+    # A kiln-temp anomaly is "resolved" if review_queue marked it resolved OR a mean
+    # correction was applied to it (per instruction: apply mean to ALL kiln-temp items).
     ktc=ktc_map.get(str(raw))
-    nbrs = ktc["nbrs"] if ktc else []
+    dhc=dhc_map.get(str(raw))
+    mean_applied = bool(ktc and ktc.get("mean") is not None) or bool(dhc and dhc.get("mean") is not None)
+    needs = "خیر (حل‌شده)" if (g["resolved"]>0 or mean_applied) else "بله"
+    nbrs = (ktc["nbrs"] if ktc else []) or (dhc["nbrs"] if dhc else [])
     nbr_s = " | ".join(str(x) for x in nbrs) if nbrs else ""
-    mean_s = str(ktc["mean"]) if (ktc and ktc.get("mean") is not None) else ""
-    reason_s = g["reason"] if g.get("reason") else (str(ktc["reason"]) if (ktc and ktc.get("reason")) else "")
+    mean_s = str(ktc["mean"]) if (ktc and ktc.get("mean") is not None) else (str(dhc["mean"]) if (dhc and dhc.get("mean") is not None) else "")
+    reason_s = g["reason"] if g.get("reason") else (str(ktc["reason"]) if (ktc and ktc.get("reason")) else (str(dhc["reason"]) if (dhc and dhc.get("reason")) else ""))
     cleaned_s = str(g["cleaned"]) if g.get("cleaned") is not None else ""
-    out.append([t,f,raw,g["n"],CLASS_FA.get(cls,cls),diag,act,needs,note,nbr_s,mean_s,reason_s,cleaned_s])
+    date_err = extract_date(g["nk"]) if (("wagon" in f) or ("incoming_car" in f)) else ""
+    out.append([t,f,raw,g["n"],CLASS_FA.get(cls,cls),diag,act,needs,note,nbr_s,mean_s,reason_s,cleaned_s,date_err])
 
 # Append kiln-temp corrections NOT already covered by review_queue (e.g. low <100 rows
 # that validate_anomalies.py did not flag). Each is a resolved, mean-applied row.
@@ -110,10 +141,25 @@ for k in ktc_rows:
                 "بررسی و تأیید پیشنهاد توسط کارخونه (بدون اعمال خودکار)",
                 "خیر (حل‌شده)", f"مقدار {raw} خارج از محدوده؛ با میانگین ۳ مقدار سالم همین زون جایگزین شد",
                 nbr_s, mean_s, "mean_of_neighbors", ""])
+
+# Append dryer-humidity corrections (out-of-range >100) NOT already in review_queue.
+seen_d=set((str(r[1]), str(r[2])) for r in out if str(r[1]).startswith("dryer_humidity"))
+for k in dhc_rows:
+    col="dryer_readings.value"
+    if (col, str(k["raw"])) in seen_d:
+        continue
+    raw=k["raw"]; mean_s=str(k["mean"]) if k["mean"] is not None else ""
+    nbrs=dhc_map[str(raw)]["nbrs"] if str(raw) in dhc_map else []
+    nbr_s=" | ".join(str(x) for x in nbrs)
+    out.append(["dryer_readings",col,raw,1,"نامعتبر",
+                "رطوبت بالای ۱۰۰٪ (نامعتبر)",
+                "بررسی توسط کارخونه",
+                "خیر (حل‌شده)", f"مقدار {raw} خارج از محدوده رطوبت؛ با میانگین ۳ مقدار سالم همین عملیات جایگزین شد",
+                nbr_s, mean_s, "mean_of_neighbors", ""])
 # sort: open (needs review) first, then resolved; Invalid first within each
 out.sort(key=lambda r:(0 if r[7].startswith("بله") else 1, 0 if r[4].startswith("نامعتبر") else 1, -r[3]))
 
-HEADERS=["جدول","ستون","مقدار_خام","تعداد_تکرار","وضعیت","عیب‌شناسی","اقدام_پیشنهادی","نیاز_به_بررسی","یادداشت","مقادیر_متناظر_سالم","مقدار_اصلاح‌شده_میانگین","علت_اصلاح","مقدار_تمیز‌شده"]
+HEADERS=["جدول","ستون","مقدار_خام","تعداد_تکرار","وضعیت","عیب‌شناسی","اقدام_پیشنهادی","نیاز_به_بررسی","یادداشت","مقادیر_متناظر_سالم","مقدار_اصلاح‌شده_میانگین","علت_اصلاح","مقدار_تمیز‌شده","تاریخ_درج_اشتباه"]
 
 # 1. XLSX
 if HAVE_XLSX:
