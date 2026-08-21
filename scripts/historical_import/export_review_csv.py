@@ -50,7 +50,8 @@ def diagnose(field, cls, raw, fix):
     return (CLASS_FA.get(cls,cls), "بررسی توسط کارخونه", raw_s)
 
 conn=psycopg2.connect(**CONN); cur=conn.cursor()
-cur.execute("""SELECT table_name, field_name, raw_value, issue_class, suggested_fix, resolved
+cur.execute("""SELECT table_name, field_name, raw_value, issue_class, suggested_fix, resolved,
+                      cleaned_value, correction_reason
                FROM review_queue""")
 rows=cur.fetchall()
 
@@ -66,12 +67,14 @@ for r in cur.fetchall():
 conn.close()
 
 # group + count (resolved rows folded in, tracked separately)
-grp=defaultdict(lambda:{"n":0,"cls":None,"fix":None,"resolved":0})
-for t,f,raw,cls,fix,res in rows:
+grp=defaultdict(lambda:{"n":0,"cls":None,"fix":None,"resolved":0,"cleaned":None,"reason":None})
+for t,f,raw,cls,fix,res,cleaned,reason in rows:
     key=(t,f,str(raw),cls)
     grp[key]["n"]+=1
     grp[key]["cls"]=cls; grp[key]["fix"]=fix
     if res: grp[key]["resolved"]+=1
+    if cleaned is not None: grp[key]["cleaned"]=cleaned
+    if reason is not None: grp[key]["reason"]=reason
 
 out=[]
 for (t,f,raw,cls),g in grp.items():
@@ -81,12 +84,13 @@ for (t,f,raw,cls),g in grp.items():
     nbrs = ktc["nbrs"] if ktc else []
     nbr_s = " | ".join(str(x) for x in nbrs) if nbrs else ""
     mean_s = str(ktc["mean"]) if (ktc and ktc.get("mean") is not None) else ""
-    reason_s = str(ktc["reason"]) if (ktc and ktc.get("reason")) else ""
-    out.append([t,f,raw,g["n"],CLASS_FA.get(cls,cls),diag,act,needs,note,nbr_s,mean_s,reason_s])
+    reason_s = g["reason"] if g.get("reason") else (str(ktc["reason"]) if (ktc and ktc.get("reason")) else "")
+    cleaned_s = str(g["cleaned"]) if g.get("cleaned") is not None else ""
+    out.append([t,f,raw,g["n"],CLASS_FA.get(cls,cls),diag,act,needs,note,nbr_s,mean_s,reason_s,cleaned_s])
 # sort: open (needs review) first, then resolved; Invalid first within each
 out.sort(key=lambda r:(0 if r[7].startswith("بله") else 1, 0 if r[4].startswith("نامعتبر") else 1, -r[3]))
 
-HEADERS=["جدول","ستون","مقدار_خام","تعداد_تکرار","وضعیت","عیب‌شناسی","اقدام_پیشنهادی","نیاز_به_بررسی","یادداشت","مقادیر_متناظر_سالم","مقدار_اصلاح‌شده_میانگین","علت_اصلاح"]
+HEADERS=["جدول","ستون","مقدار_خام","تعداد_تکرار","وضعیت","عیب‌شناسی","اقدام_پیشنهادی","نیاز_به_بررسی","یادداشت","مقادیر_متناظر_سالم","مقدار_اصلاح‌شده_میانگین","علت_اصلاح","مقدار_تمیز‌شده"]
 
 # 1. XLSX
 if HAVE_XLSX:
