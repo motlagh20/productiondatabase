@@ -40,11 +40,13 @@ docker compose -f docker-compose.data.yml up -d   # postgres:16, port 5433, volu
 ## 5. Export review_queue for plant handoff
 ```bash
 python export_review_csv.py
-# -> xls/consolidated/review_queue_export.xlsx  (Farsi, RTL, opens cleanly in Excel)
+# -> xls/consolidated/review_queue_export.xlsx  (Farsi, RTL, grouped by value + occurrence count)
 # -> xls/consolidated/review_queue_export.csv   (UTF-8 BOM, for tooling)
 ```
-This is the QA batch the plant must review (1,322 rows in first load: 1,153 Warning, 169 Invalid).
-Prefer the **.xlsx** for handing to plant staff (guaranteed Persian/RTL rendering); the CSV is for pipelines.
+Outputs a QA worksheet with columns: جدول | ستون | مقدار_خام | تعداد_تکرار | وضعیت |
+عیب‌شناسی | اقدام_پیشنهادی | نیاز_به_بررسی | یادداشت. Rows are grouped by (table, field,
+value, class) with an occurrence count, and each row carries a Farsi diagnosis + proposed
+action. Use the **.xlsx** for plant staff (guaranteed Persian/RTL, no glyph loss); CSV for pipelines.
 No auto-correction is applied — flagged rows stay in `review_queue` per owner directive.
 
 ## Validation model
