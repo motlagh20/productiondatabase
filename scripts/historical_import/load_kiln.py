@@ -32,9 +32,10 @@ ZONE_MAP={
  "temp_bottomA":("bottom","A"),"باتومَ A":("bottom","A"),"باتوم A":("bottom","A"),"bottomA":("bottom","A"),
  "temp_bottom01":("bottom","01"),"باتوم1":("bottom","01"),"bottom01":("bottom","01"),
  "temp_bottomB":("bottom","B"),"باتومB":("bottom","B"),"bottomB":("bottom","B"),
- "temp_bottom02":("bottom","02"),"باتوم2":("bottom","02"),"bottom02":("bottom","02"),
- "دمای لوله باتوم":("bottom","pipe"),"دمای لوله خشک کن":("dryer_pipe","pipe"),
-}
+ "temp_bottom02":("bottom","B2"),"باتوم2":("bottom","B2"),"bottom02":("bottom","B2"),
+ "دمای لوله باتوم":("bottom","pipe"),"دمای لوله خشک کن":("dryer","pipe"),
+ "دمای واگن 44":("wagon44","temp"),
+ }
 
 kiln_files=sorted(RD.glob("Kiln-*.xls*"))
 loaded=0; temps=0; flags=0

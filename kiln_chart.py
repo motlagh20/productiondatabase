@@ -51,7 +51,7 @@ SLOTS = [
     (35, "W35",           None, None),
     (36, "باتومB",        "bottom",      "B"),
     (37, "W37",           None, None),
-    (38, "رپید۲(خ)",     "rapid",       "02"),
+    (38, "باتوم۲",        "bottom",      "B2"),
     (39, "W39",           None, None),
     (40, "W40",           None, None),
     (41, "W41",           None, None),
