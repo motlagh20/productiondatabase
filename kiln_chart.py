@@ -87,24 +87,46 @@ def kiln_profile_at_push(push_id):
                   FROM kiln_temperature_readings WHERE push_id=%s""", (push_id,))
     raw=rows_to_dicts(cur); cur.close(); c.close()
     val={(r["zone_group"], r["zone_reading"]): float(r["value"]) for r in raw}
-    # build 44-slot series, interpolate W slots from neighbours
+    # build 44-slot series
     series=[]
-    last=None
     for pos,label,zg,zr in SLOTS:
         if zg:
             v=val.get((zg,zr))
-            series.append((pos,label,v if v is not None else last))
-            last=v if v is not None else last
+            series.append([pos,label, v if v is not None else None])
         else:
-            series.append((pos,label,None))
-    # forward fill None (W slots between two sensors)
-    for i in range(len(series)):
-        if series[i][2] is None:
-            # find next known
-            nx=next((s[2] for s in series[i:] if s[2] is not None), None)
-            pv=series[i-1][2] if i>0 else nx
-            series[i]=(series[i][0], series[i][1], pv if pv is not None else nx)
-    return series  # list of (pos,label,temp)
+            series.append([pos,label, None])  # W slot: no sensor, interpolate linearly
+    # Linear interpolation for W (sensor-less) slots, per:
+    #   T_i = T_0 + (i / n) * (T_n - T_0)
+    # where T_0/T_n are the bounding sensor slots and n = slots between them.
+    # Slots are equidistant (step 1), so i is the count of slots from T_0.
+    i=0
+    while i < len(series):
+        if series[i][2] is not None:
+            i+=1; continue
+        # find previous known (j) and next known (k)
+        j=i-1
+        while j>=0 and series[j][2] is None: j-=1
+        k=i+1
+        while k<len(series) and series[k][2] is None: k+=1
+        if j<0 or k>=len(series) or series[j][2] is None or series[k][2] is None:
+            # no two bounding sensors -> leave as None (will be dropped in chart)
+            i+=1; continue
+        n=k-j  # number of segments between the two sensors
+        T0=series[j][2]; Tn=series[k][2]
+        for m in range(j+1, k):
+            frac=(m-j)/n
+            series[m][2]=T0 + frac*(Tn-T0)
+        i=k
+    # Trailing sensor-less slots (after the last sensor, e.g. W39..W44 at kiln exit):
+    # no upper bound to interpolate to -> hold the last known sensor value.
+    last_known=None
+    for s in series:
+        if s[2] is not None:
+            last_known=s[2]
+        elif last_known is not None:
+            s[2]=last_known
+    return [(s[0], s[1], s[2]) for s in series]  # list of (pos,label,temp)
+
 
 # ---- wagon thermal history ------------------------------------------------
 def wagon_history(wagon_no):
