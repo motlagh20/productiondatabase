@@ -139,58 +139,57 @@ def kiln_profile_at_push(push_id):
 
 
 # ---- wagon thermal history ------------------------------------------------
-def wagon_history(wagon_no):
-    """For each push where this wagon was inside the kiln (entry .. entry+43),
-    report the temp at the slot the wagon occupied (its zone at that time)."""
+def wagon_history(wagon_no, exit_index=-1):
+    """Thermal profile of wagon X across ONE 44-push transit (entry -> exit).
+    Per owner model: wagon X enters at push E (slot 1) and, with each push,
+    advances one slot; after 44 pushes it exits at slot 44. So for push p=E..E+43,
+    the wagon sits at slot k=(p-E+1) and experiences that slot's temperature
+    recorded AT push p. Returns the ordered list of (push_seq, slot, temp) for
+    that single transit. exit_index selects which of the wagon's transits
+    (-1 = most recent exit)."""
     pushes=ordered_pushes()
     entries=[i for i,p in enumerate(pushes) if str(p["incoming_car_id"])==str(wagon_no)]
     if not entries:
         return []
-    # Preload all readings for the pushes this wagon touches (one query, one conn).
-    max_idx=min(max(ei+QUEUE_LEN-1 for ei in entries), len(pushes)-1)
-    pid_list=[pushes[i]["id"] for i in range(min(entries), max_idx+1)]
-    c=db(); cur=c.cursor()
-    cur.execute("""SELECT push_id, zone_group, zone_reading, value
-                  FROM kiln_temperature_readings WHERE push_id = ANY(%s)""", (pid_list,))
-    rd={}
-    for r in cur.fetchall():
-        rd.setdefault(r[0], {})[(r[1], r[2])] = float(r[3])
-    cur.close(); c.close()
+    # entries[i] = entry push index of the i-th transit; exit push = entry + 43
+    if exit_index < 0:
+        exit_index = len(entries) + exit_index   # -1 -> last
+    exit_index = max(0, min(exit_index, len(entries)-1))
+    ei = entries[exit_index]
+    start, end = ei, ei + QUEUE_LEN - 1
+    if end >= len(pushes):
+        start, end = len(pushes)-QUEUE_LEN, len(pushes)-1
     hist=[]
-    for ei in entries:
-        for k in range(QUEUE_LEN):
-            idx=ei+k
-            if idx>=len(pushes): break
-            p=pushes[idx]; pos=k+1; slot=SLOTS[pos-1]
-            if slot[2]:
-                t=rd.get(p["id"], {}).get((slot[2], slot[3]))
-            else:
-                t=None
-            hist.append({"push_seq": idx+1, "push_id": p["id"],
-                         "date": p["date_jalali"], "slot": pos,
-                         "slot_label": slot[1], "temp": t,
-                         "is_exit": (k==QUEUE_LEN-1)})
+    for k, idx in enumerate(range(start, end+1), start=1):
+        p = pushes[idx]
+        prof = kiln_profile_at_push(p["id"])   # 44-slot series w/ linear interp
+        slot = prof[k-1]                        # slot k for this push
+        hist.append({"push_seq": idx+1, "push_id": p["id"],
+                     "date": p["date_jalali"], "slot": k,
+                     "slot_label": slot[1], "temp": slot[2],
+                     "is_exit": (k == QUEUE_LEN)})
     return hist
 
-def wagon_exit_profile(wagon_no):
+def wagon_exit_profile(wagon_no, exit_index=-1):
     """Last push where wagon was inside kiln -> full 44-slot profile + grade/waste."""
     pushes=ordered_pushes()
     entries=[i for i,p in enumerate(pushes) if str(p["incoming_car_id"])==str(wagon_no)]
     if not entries:
         return None
-    ei=entries[-1]
-    exit_idx=ei+QUEUE_LEN-1
-    if exit_idx>=len(pushes): exit_idx=len(pushes)-1
+    if exit_index < 0:
+        exit_index = len(entries) + exit_index
+    exit_index = max(0, min(exit_index, len(entries)-1))
+    ei=entries[exit_index]
+    exit_idx=min(ei+QUEUE_LEN-1, len(pushes)-1)
     exit_push=pushes[exit_idx]
     series=kiln_profile_at_push(exit_push["id"])
-    # grade/waste for linkage (by date + product if available)
     c=db(); cur=c.cursor()
     cur.execute("""SELECT grade1, grade2, waste, total, product_code
                   FROM v_clean_packing
                   WHERE date_jalali=%s LIMIT 1""", (exit_push["date_jalali"],))
     gr=rows_to_dicts(cur); cur.close(); c.close()
     return {"wagon_no": wagon_no, "exit_push_id": exit_push["id"],
-            "exit_date": exit_push["date_jalali"],
+            "exit_date": exit_push["date_jalali"], "exit_index": exit_index,
             "series": series, "grade": gr[0] if gr else None}
 
 # ---- SVG rendering ---------------------------------------------------------
@@ -286,13 +285,13 @@ class H(BaseHTTPRequestHandler):
                 pid=gi("push_id",1); s=kiln_profile_at_push(pid)
                 self._send(200, svg_kiln(s, f"پروفایل کوره — push {pid}"), "image/svg+xml; charset=utf-8")
             elif u.path=="/wagon-profile":
-                wn=gs("wagon_no","1"); h=wagon_history(wn)
-                self._send(200,{"wagon_no":wn,"history":h})
+                wn=gs("wagon_no","1"); ei=gi("exit_index",-1); h=wagon_history(wn, ei)
+                self._send(200,{"wagon_no":wn,"exit_index":ei,"history":h})
             elif u.path=="/wagon-chart":
-                wn=gs("wagon_no","1"); h=wagon_history(wn)
-                self._send(200, svg_wagon(h, f"سیر حرارتی واگن {wn}"), "image/svg+xml; charset=utf-8")
+                wn=gs("wagon_no","1"); ei=gi("exit_index",-1); h=wagon_history(wn, ei)
+                self._send(200, svg_wagon(h, f"سیر حرارتی واگن {wn} — خروج #{ei}"), "image/svg+xml; charset=utf-8")
             elif u.path=="/wagon-exit-chart":
-                wn=gs("wagon_no","1"); e=wagon_exit_profile(wn)
+                wn=gs("wagon_no","1"); ei=gi("exit_index",-1); e=wagon_exit_profile(wn, ei)
                 if not e: self._send(404,{"error":"wagon not found"})
                 else:
                     svg=svg_kiln(e["series"], f"پروفایل خروج واگن {wn} — push {e['exit_push_id']} ({e['exit_date']})")
