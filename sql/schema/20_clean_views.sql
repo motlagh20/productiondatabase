@@ -58,6 +58,9 @@ SELECT
 FROM dryer_readings dr;
 
 -- 4. Open anomalies still needing plant ledger review (flag-only, no value change)
+-- record_date is the canonicalized first '|' segment of natural_key:
+--   2-digit year -> 13xx, all separators -> '.', format 'YYYY.MM.DD'.
+-- natural_key itself is the JOIN key and is left UNTOUCHED.
 CREATE OR REPLACE VIEW v_open_anomalies AS
 SELECT
     rq.id,
@@ -66,8 +69,15 @@ SELECT
     rq.raw_value,
     rq.issue_class,
     rq.natural_key,
-    -- date extracted from natural_key first segment
-    split_part(rq.natural_key, '|', 1) AS record_date,
+    CASE
+        WHEN split_part(rq.natural_key, '|', 1) ~ '^[0-9]{2}[./-]' THEN
+            (SELECT '13' || lpad(a[1],2,'0') || '.' || lpad(a[2],2,'0') || '.' || lpad(a[3],2,'0')
+             FROM (SELECT regexp_split_to_array(split_part(rq.natural_key,'|',1), '[./-]') AS a) s)
+        WHEN split_part(rq.natural_key, '|', 1) ~ '^[0-9]{4}[./-]' THEN
+            (SELECT a[1] || '.' || lpad(a[2],2,'0') || '.' || lpad(a[3],2,'0')
+             FROM (SELECT regexp_split_to_array(split_part(rq.natural_key,'|',1), '[./-]') AS a) s)
+        ELSE split_part(rq.natural_key, '|', 1)
+    END AS record_date,
     rq.suggested_fix,
     rq.correction_reason
 FROM review_queue rq

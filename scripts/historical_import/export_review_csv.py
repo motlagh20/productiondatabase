@@ -99,10 +99,19 @@ for t,f,raw,cls,fix,res,cleaned,reason,nk in rows:
     if nk is not None: grp[key]["nk"].add(str(nk))
 
 def extract_date(nk_set):
-    """First '|'-segment of any natural_key is the Jalali date of the erroneous record."""
+    """First '|'-segment of any natural_key is the Jalali date of the erroneous record.
+    Canonicalized to YYYY.MM.DD (2-digit year -> 13xx; any separator -> '.')."""
+    import re as _re
     for nk in nk_set:
         if nk and "|" in nk:
-            return nk.split("|",1)[0]
+            seg=nk.split("|",1)[0].strip()
+            m=_re.match(r"^(\d{4})[./-](\d{1,2})[./-](\d{1,2})$", seg)
+            if m:
+                return f"{m.group(1)}.{int(m.group(2)):02d}.{int(m.group(3)):02d}"
+            m=_re.match(r"^(\d{2})[./-](\d{1,2})[./-](\d{1,2})$", seg)
+            if m:
+                return f"13{m.group(1)}.{int(m.group(2)):02d}.{int(m.group(3)):02d}"
+            return seg
     return ""
 
 out=[]
