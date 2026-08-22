@@ -2,9 +2,9 @@
 # APPLY kiln_pushes date_jalali fixes for RESOLVABLE malformed rows only
 # (HIGH + CHECK, i.e. neighbor-year + parseable MM.DD). Leaves FLAG rows
 # (ambiguous MM.DD) untouched so they stay in review_queue.
-# Also re-aligns the date segment of natural_key (= date|hour|car) so the
-# clean views (which derive record_date FROM natural_key) stay consistent.
-# Idempotent: only updates rows whose date_jalali is still malformed.
+# IMPORTANT: updates date_jalali ONLY. natural_key is the JOIN key and is
+# NEVER touched (owner rule). Clean views derive record_date from natural_key,
+# so natural_key's raw date form is authoritative for joins. Idempotent.
 import psycopg2, re
 
 CONN=dict(host="localhost",port=5433,dbname="postgres",user="postgres",password="test")
@@ -61,11 +61,9 @@ for i,(pid,dt,hr,car,nk) in enumerate(rows):
     if md is None:
         skipped_flag+=1; continue
     prop=f"{Y}.{md[0]:02d}.{md[1]:02d}"
-    # re-align natural_key date segment (keep hour|car)
-    new_nk=f"{prop}|{hr or ''}|{car or ''}"
+    # FIX date_jalali only. NEVER touch natural_key (JOIN key, owner rule).
     cur2=psycopg2.connect(**CONN); cu=cur2.cursor()
-    cu.execute("UPDATE kiln_pushes SET date_jalali=%s, natural_key=%s WHERE id=%s",
-               (prop, new_nk, pid))
+    cu.execute("UPDATE kiln_pushes SET date_jalali=%s WHERE id=%s", (prop, pid))
     cur2.commit(); cu.close(); cur2.close()
     applied+=1
 
