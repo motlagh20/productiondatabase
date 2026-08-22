@@ -117,14 +117,24 @@ def kiln_profile_at_push(push_id):
             frac=(m-j)/n
             series[m][2]=T0 + frac*(Tn-T0)
         i=k
-    # Trailing sensor-less slots (after the last sensor, e.g. W39..W44 at kiln exit):
-    # no upper bound to interpolate to -> hold the last known sensor value.
-    last_known=None
+    # Trailing sensor-less slots after the last sensor (W39..W44 at kiln exit).
+    # Owner directive: W44 (final wagon, no sensor) is taken as a fixed mean of
+    # 70C; intermediate W-slots are linearly interpolated between the last known
+    # sensor value (T0 at slot j) and W44=70 (at the final slot), per
+    #   T_i = T0 + (i/n)*(70 - T0),  n = (final_slot - j)
+    LAST_SLOT = series[-1][0]          # 44
+    W44_TEMP = 70.0
+    last_known=None; last_pos=None
     for s in series:
         if s[2] is not None:
-            last_known=s[2]
-        elif last_known is not None:
-            s[2]=last_known
+            last_known=s[2]; last_pos=s[0]
+    if last_known is not None and last_pos < LAST_SLOT:
+        n = LAST_SLOT - last_pos
+        T0 = last_known
+        for s in series:
+            if s[2] is None and last_pos < s[0] <= LAST_SLOT:
+                frac = (s[0]-last_pos)/n
+                s[2] = T0 + frac*(W44_TEMP - T0)
     return [(s[0], s[1], s[2]) for s in series]  # list of (pos,label,temp)
 
 
