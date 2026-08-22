@@ -151,7 +151,8 @@ def wagon_history(wagon_no, exit_index=-1):
     entries=[i for i,p in enumerate(pushes) if str(p["incoming_car_id"])==str(wagon_no)]
     if not entries:
         return []
-    # entries[i] = entry push index of the i-th transit; exit push = entry + 43
+    # entries[i] = entry push index of the i-th transit; transit spans 44 pushes
+    # (entry slot1 .. exit slot44 => indices [ei, ei+QUEUE_LEN-1])
     if exit_index < 0:
         exit_index = len(entries) + exit_index   # -1 -> last
     exit_index = max(0, min(exit_index, len(entries)-1))
