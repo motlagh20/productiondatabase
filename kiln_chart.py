@@ -86,7 +86,7 @@ def ordered_pushes():
                   FROM kiln_pushes""")
     rows=rows_to_dicts(cur); cur.close(); c.close()
     # order purely by date + numeric hour; missing-hour sorts last within its day
-    rows.sort(key=lambda p: (p["date_jalali"] or "9999.99.99", _hour_parts(p.get("hour"))))
+    rows.sort(key=lambda p: (p["date_jalali"] or "9999.99.99", _hour_parts(p.get("hour")), p["id"]))
     for i,p in enumerate(rows, start=1):
         p["push_seq"]=i          # computed PushID (1-based chronological)
     return rows
@@ -194,7 +194,7 @@ def latest_exit_wagon():
     pushes=ordered_pushes()
     if len(pushes) < QUEUE_LEN:
         return None
-    entry_rank = len(pushes) - QUEUE_LEN
+    entry_rank = len(pushes) - QUEUE_LEN - 1
     return str(pushes[entry_rank]["incoming_car_id"])
 
 def wagon_history(wagon_no, exit_index=-1):
