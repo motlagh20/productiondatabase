@@ -69,13 +69,27 @@ def rows_to_dicts(cur):
     return [dict(zip(cols, r)) for r in cur.fetchall()]
 
 # ---- ordered push timeline (by date_jalali + hour) -------------------------
+# push_seq is COMPUTED (not stored): 1-based chronological rank by
+# (date_jalali, hour-as-HH:MM:SS). This is the stable "PushID" used by all
+# transit math (entry+44 -> exit). Ordering depends ONLY on date+time, never
+# on incoming_car_id: pushes with a missing/blank wagon still take their
+# correct time slot (empty wagon filled in later) and must not disturb order.
+# Inserting a new push at its correct time auto re-ranks; no physical column
+# is mutated, so time order can never break. (Option A: computed, owner dir.)
+def _hour_parts(h):
+    m=__import__("re").match(r"(\d{1,2}):(\d{2}):(\d{2})", h or "")
+    return (int(m.group(1)), int(m.group(2)), int(m.group(3))) if m else (99,99,99)
+
 def ordered_pushes():
     c=db(); cur=c.cursor()
     cur.execute("""SELECT id, incoming_car_id, date_jalali, hour, pushing_time_min
-                  FROM kiln_pushes
-                  WHERE incoming_car_id IS NOT NULL
-                  ORDER BY date_jalali, hour""")
-    d=rows_to_dicts(cur); cur.close(); c.close(); return d
+                  FROM kiln_pushes""")
+    rows=rows_to_dicts(cur); cur.close(); c.close()
+    # order purely by date + numeric hour; missing-hour sorts last within its day
+    rows.sort(key=lambda p: (p["date_jalali"] or "9999.99.99", _hour_parts(p.get("hour"))))
+    for i,p in enumerate(rows, start=1):
+        p["push_seq"]=i          # computed PushID (1-based chronological)
+    return rows
 
 def push_time_str(p):
     return f"{p['date_jalali']} {p.get('hour') or ''}"
@@ -165,7 +179,7 @@ def wagon_history(wagon_no, exit_index=-1):
         p = pushes[idx]
         prof = kiln_profile_at_push(p["id"])   # 44-slot series w/ linear interp
         slot = prof[k-1]                        # slot k for this push
-        hist.append({"push_seq": idx+1, "push_id": p["id"],
+        hist.append({"push_seq": p["push_seq"], "push_id": p["id"],
                      "date": p["date_jalali"], "slot": k,
                      "slot_label": slot[1], "temp": slot[2],
                      "is_exit": (k == QUEUE_LEN)})
