@@ -14,7 +14,7 @@ CONN=dict(host="localhost",port=5433,dbname="postgres",user="postgres",password=
 # 44-slot layout (position -> (label, zone_group, zone_reading or None))
 # W slots have no direct sensor; they get interpolated from neighbouring zones.
 SLOTS = [
-    (1,  "اگزوز",         "exhaust",     "exhaust"),
+    (1,  "اگزوز",         "exhaust",     "temp"),
     (2,  "W2",            None, None),
     (3,  "پیش‌گرما۱",     "preheat",     "01"),
     (4,  "W4",            None, None),
@@ -22,7 +22,7 @@ SLOTS = [
     (6,  "W6",            None, None),
     (7,  "W7",            None, None),
     (8,  "W8",            None, None),
-    (9,  "ترموستات",     "thermostat",  "thermostat"),
+    (9,  "ترموستات",     "thermostat",  "temp"),
     (10, "W10",           None, None),
     (11, "W11",           None, None),
     (12, "W12",           None, None),
