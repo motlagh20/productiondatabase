@@ -185,6 +185,50 @@ def wagon_history(wagon_no, exit_index=-1):
                      "is_exit": (k == QUEUE_LEN)})
     return hist
 
+def latest_exit_wagon():
+    """Wagon that exited at the most recent push (PushID=N). Per the 44-push
+    model, the exiting wagon entered QUEUE_LEN pushes earlier, so it is the
+    incoming_car_id at rank (N - QUEUE_LEN) in chronological order. Returns the
+    wagon_no (string) or None if timeline too short. Used as the default for
+    /wagon-chart when no wagon_no is supplied (owner: show last exited wagon)."""
+    pushes=ordered_pushes()
+    if len(pushes) < QUEUE_LEN:
+        return None
+    entry_rank = len(pushes) - QUEUE_LEN
+    return str(pushes[entry_rank]["incoming_car_id"])
+
+def wagon_history(wagon_no, exit_index=-1):
+    """Thermal profile of wagon X across ONE 44-push transit (entry -> exit).
+    Per owner model: wagon X enters at push E (slot 1) and, with each push,
+    advances one slot; after 44 pushes it exits at slot 44. So for push p=E..E+43,
+    the wagon sits at slot k=(p-E+1) and experiences that slot's temperature
+    recorded AT push p. Returns the ordered list of (push_seq, slot, temp) for
+    that single transit. exit_index selects which of the wagon's transits
+    (-1 = most recent exit)."""
+    pushes=ordered_pushes()
+    entries=[i for i,p in enumerate(pushes) if str(p["incoming_car_id"])==str(wagon_no)]
+    if not entries:
+        return []
+    # entries[i] = entry push index of the i-th transit; transit spans 44 pushes
+    # (entry slot1 .. exit slot44 => indices [ei, ei+QUEUE_LEN-1])
+    if exit_index < 0:
+        exit_index = len(entries) + exit_index   # -1 -> last
+    exit_index = max(0, min(exit_index, len(entries)-1))
+    ei = entries[exit_index]
+    start, end = ei, ei + QUEUE_LEN - 1
+    if end >= len(pushes):
+        start, end = len(pushes)-QUEUE_LEN, len(pushes)-1
+    hist=[]
+    for k, idx in enumerate(range(start, end+1), start=1):
+        p = pushes[idx]
+        prof = kiln_profile_at_push(p["id"])   # 44-slot series w/ linear interp
+        slot = prof[k-1]                        # slot k for this push
+        hist.append({"push_seq": p["push_seq"], "push_id": p["id"],
+                     "date": p["date_jalali"], "slot": k,
+                     "slot_label": slot[1], "temp": slot[2],
+                     "is_exit": (k == QUEUE_LEN)})
+    return hist
+
 def wagon_exit_profile(wagon_no, exit_index=-1):
     """Last push where wagon was inside kiln -> full 44-slot profile + grade/waste."""
     pushes=ordered_pushes()
@@ -300,13 +344,13 @@ class H(BaseHTTPRequestHandler):
                 pid=gi("push_id",1); s=kiln_profile_at_push(pid)
                 self._send(200, svg_kiln(s, f"پروفایل کوره — push {pid}"), "image/svg+xml; charset=utf-8")
             elif u.path=="/wagon-profile":
-                wn=gs("wagon_no","1"); ei=gi("exit_index",-1); h=wagon_history(wn, ei)
+                wn=gs("wagon_no",None) or latest_exit_wagon() or "1"; ei=gi("exit_index",-1); h=wagon_history(wn, ei)
                 self._send(200,{"wagon_no":wn,"exit_index":ei,"history":h})
             elif u.path=="/wagon-chart":
-                wn=gs("wagon_no","1"); ei=gi("exit_index",-1); h=wagon_history(wn, ei)
+                wn=gs("wagon_no",None) or latest_exit_wagon() or "1"; ei=gi("exit_index",-1); h=wagon_history(wn, ei)
                 self._send(200, svg_wagon(h, f"سیر حرارتی واگن {wn} — خروج #{ei}"), "image/svg+xml; charset=utf-8")
             elif u.path=="/wagon-exit-chart":
-                wn=gs("wagon_no","1"); ei=gi("exit_index",-1); e=wagon_exit_profile(wn, ei)
+                wn=gs("wagon_no",None) or latest_exit_wagon() or "1"; ei=gi("exit_index",-1); e=wagon_exit_profile(wn, ei)
                 if not e: self._send(404,{"error":"wagon not found"})
                 else:
                     svg=svg_kiln(e["series"], f"پروفایل خروج واگن {wn} — push {e['exit_push_id']} ({e['exit_date']})")
