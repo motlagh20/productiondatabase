@@ -2,6 +2,26 @@
 
 This project has been **redefined** per the [Master Project Rules](docs/00_MASTER_PROJECT_RULES.md): the goal is a configurable, multi-factory **Manufacturing Analytics & Execution Platform** (Django + DRF, React + TypeScript, PostgreSQL), built documentation-first. The initial roof-tile/ceramic plant is the reference implementation, not the architecture.
 
+## Staging database — historical load status (2026-08-26)
+
+> **Intermediate data-load phase** (not the final app DB). PostgreSQL 16 on `productiondb-data`
+> (localhost:5433, db `postgres`). It loads the 4 MES modules from the consolidated Excel
+> sources so analysts can validate before the Django/React build. Final app DB is a later milestone.
+
+**Source of truth:** `xls/consolidated/All/*.xlsx` (the owner-declared final reference workbooks).
+**DDL:** `sql/schema/30_setting.sql` · `31_dryer.sql` · `32_kiln.sql` · `33_packing.sql`
+**ETL (batched, idempotent):** `scripts/historical_import/etl_setting.py` · `etl_dryer.py` · `etl_kiln.py` · `etl_packing.py`
+
+| Module | Tables | Loaded rows | Rejects |
+|---|---|---|---|
+| Setting | `setting_event` / `setting_wagon` | 20,520 / 67,683 | 11 |
+| Dryer | `dryer_cycle` / `dryer_reading` | 18,558 / 18,370 | 3 |
+| Kiln | `kiln_push` / `kiln_wagon` / `kiln_reading` / `kiln_sensor` | 38,781 / 38,818 / 697,312 / 18 | — |
+| Packing | `packing_header` / `packing_wagon` | 8,543 / 93,381 | — |
+
+**Deviation note (ADR-0001):** this staging build diverged from the pre-build ERD (`docs/M2_5_ERD_SCHEMA.md`)
+table names — e.g. `kiln_pushes`+`kiln_temperature_readings` (wide) became `kiln_push`+`kiln_wagon`+`kiln_reading`+`kiln_sensor` (row-oriented, 18 sensors). The staging tables are the working load; the ERD remains the target for the final app schema. Legacy reference tables (`kiln_pushes`, `kiln_temperature_readings`, `wagon_master`, `packing_records`) still coexist from the frozen app and are being superseded, not yet dropped (pending owner confirmation).
+
 **Current phase:** Data profiling & migration blueprints **complete** (see [OVERVIEW.md](docs/OVERVIEW.md)). Master Product & Architecture Specification v0.1 + ADRs 0001–0006 approved for the documentation-first path. No new application code exists yet — see [ADR-0001](adr/ADR-0001-documentation-first-development.md). Ready for M0 architecture sign-off.
 
 ## Status of the existing app in this repository

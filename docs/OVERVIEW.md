@@ -69,6 +69,26 @@ The last isolates the **27 flag-only** rows (wagon/chamber) needing ledger revie
 
 `operator_mapping_blueprint.csv`, `product_mapping_blueprint.csv`, `glaze_mapping_blueprint.csv` — the `legacy_code → canonical` maps extracted from the authoritative workbooks (inputs to M2 import spec).
 
+## Staging database — historical load (2026-08-26, status: loaded + verified)
+
+PostgreSQL 16 (`productiondb-data`, localhost:5433) now holds the 4 MES modules as a
+**working staging load** (not the final app DB — see README). Built from the owner-declared
+final sources `xls/consolidated/All/*.xlsx` via `sql/schema/30–33_*.sql` + `scripts/historical_import/etl_*.py`.
+
+| Module | Tables | Loaded rows | Rejects | ETL verified |
+|---|---|---|---|---|
+| Setting | `setting_event` / `setting_wagon` | 20,520 / 67,683 | 11 | yes (ad-hoc) |
+| Dryer | `dryer_cycle` / `dryer_reading` | 18,558 / 18,370 | 3 | yes (ad-hoc) |
+| Kiln | `kiln_push` / `kiln_wagon` / `kiln_reading` / `kiln_sensor` | 38,781 / 38,818 / 697,312 / 18 | — | yes (ad-hoc, live) |
+| Packing | `packing_header` / `packing_wagon` | 8,543 / 93,381 | — | yes (ad-hoc, live) |
+
+**Notes / honest caveats:**
+- Verification was **ad-hoc** (fresh inline SQL counts + FK-orphan checks), *not* a committed test suite. No CI/test harness exists yet.
+- Kiln: 83 of 38,781 pushes carry <18 sensor readings — these are **genuine source gaps** (the Excel has null/blank sensors for those pushes), not load defects. The ETL recovers any sensor present in *any* row of a push (merge-first-valid logic).
+- Packing: date source format `YYYY/MM/DD` normalized to `YYYY.MM.DD`; grouped by (date, shift, controller).
+- Legacy frozen-app tables (`kiln_pushes`, `kiln_temperature_readings`, `wagon_master`, `packing_records`) still coexist and are **superseded but not yet dropped** (pending owner confirmation).
+- Staging tables use row-oriented schemas that differ from the pre-build ERD names (see README deviation note). The ERD remains the target for the final app schema.
+
 ## Open items before M0 sign-off
 | # | Item | Status | Who |
 |---|---|---|---|

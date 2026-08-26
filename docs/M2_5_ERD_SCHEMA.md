@@ -1,7 +1,7 @@
 # M2.5 — Database ERD / Schema Specification
 
 > **Purpose:** Logical ERD + table definitions for the platform database (PostgreSQL 16), derived from the M0 model (Appendix C §1–§15) and resolved M1 questions. Per Master Rules §27 (P1: config over code) and §32 (no Excel-shaped schema), bounds live in **config tables**, not CHECK constraints. Row-oriented for variable-count series (kiln temps, dryer temp/humidity, setting wagons).
-> **Status:** Draft for owner review (pre-build; no DDL executed yet).
+> **Status:** *Target ERD for the final app schema.* A **staging load** (DDLs `sql/schema/30–33_*.sql`) has been executed on PostgreSQL 16 with **row-oriented tables that differ in name/shape** from the spec below (e.g. `kiln_push`+`kiln_wagon`+`kiln_reading`+`kiln_sensor` instead of `kiln_pushes`+`kiln_temperature_readings`). The staging tables are a working historical load; this ERD remains the canonical target the final app schema should converge to. See README "Deviation note" + `docs/IMPORT_RUNBOOK.md`.
 
 ---
 

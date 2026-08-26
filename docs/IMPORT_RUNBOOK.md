@@ -1,71 +1,77 @@
 # Historical Data Import — Runbook
 
-> How to load the 22 authoritative workbooks into PostgreSQL 16. Derived from M2 spec + M2.5 ERD.
-> **Principle:** read-only on `xls/real data/`; no fabricated values; config-driven bounds; idempotent.
+> How to (re)load the 4 MES modules into PostgreSQL 16 staging from `xls/consolidated/All/*.xlsx`.
+> **Principle:** read-only on sources; no fabricated values; batched + idempotent.
+> This runbook reflects the **current staging build** (2026-08-26), which diverged from the
+> pre-build ERD — table names below are the staging tables, not the ERD's.
 
 ## Prerequisites
 - Docker (for persistent DB) OR local PostgreSQL 16.
-- Python 3.11+ with `openpyxl`, `xlrd`, `psycopg2-binary`.
-- Source workbooks at `C:/Users/Mohammad/Nextcloud/Projects/Trae/ProductionDatabase/xls/real data/`.
+- Python 3.11+ with `openpyxl`, `psycopg2-binary`, `jdatetime`.
+- Source workbooks at `xls/consolidated/All/` (`Set_All_1.xlsx`, `Dryer-All.xlsx`, `Kiln-Merged.xlsx`, `Packing-All.xlsx`).
 
-## 0. Start the persistent warehouse DB
+## 0. Start the staging DB
 ```bash
-docker compose -f docker-compose.data.yml up -d   # postgres:16, port 5433, volume pgdata_hist (survives restart)
+# container productiondb-data — postgres:16, port 5433
 # connection: host=localhost port=5433 user=postgres password=test db=postgres
-# stop later:  docker compose -f docker-compose.data.yml down   (data preserved in volume)
-# full wipe:   docker compose -f docker-compose.data.yml down -v  (DESTROYS loaded data)
+docker start productiondb-data      # or: docker compose -f docker-compose.data.yml up -d
 ```
 
-## 1. Create schema (dev reset available)
-   ```bash
-   psql -f sql/init/00_schema.sql          # creates 18 tables + seeds config
-   # dev only: psql -f sql/init/99_reset.sql  # DROP SCHEMA public CASCADE first
-   ```
-2. **Load dimension masters** (operators/products/glazes):
-   ```bash
-   python load_dimensions.py
-   ```
-3. **Load fact tables** (order: dryer, kiln, setting, packing):
-   ```bash
-   python load_dryer.py
-   python load_kiln.py
-   python load_setting.py
-   python load_packing.py
-   ```
-4. **Verify** (row counts, FK integrity, review_queue, wagon_master):
-   ```bash
-   python verify_load.py
-   ```
-
-## 5. Export review_queue for plant handoff
+## 1. Create schema (idempotent — IF NOT EXISTS)
 ```bash
-python export_review_csv.py
-# -> xls/consolidated/review_queue_export.xlsx  (Farsi, RTL, grouped by value + occurrence count)
-# -> xls/consolidated/review_queue_export.csv   (UTF-8 BOM, for tooling)
+psql -h localhost -p 5433 -U postgres -d postgres -f sql/schema/30_setting.sql
+psql -h localhost -p 5433 -U postgres -d postgres -f sql/schema/31_dryer.sql
+psql -h localhost -p 5433 -U postgres -d postgres -f sql/schema/32_kiln.sql
+psql -h localhost -p 5433 -U postgres -d postgres -f sql/schema/33_packing.sql
 ```
-Outputs a QA worksheet with columns: جدول | ستون | مقدار_خام | تعداد_تکرار | وضعیت |
-عیب‌شناسی | اقدام_پیشنهادی | نیاز_به_بررسی | یادداشت. Rows are grouped by (table, field,
-value, class) with an occurrence count, and each row carries a Farsi diagnosis + proposed
-action. Use the **.xlsx** for plant staff (guaranteed Persian/RTL, no glyph loss); CSV for pipelines.
-No auto-correction is applied — flagged rows stay in `review_queue` per owner directive.
 
-## Validation model
-Every row is classified: `Valid | Warning | Invalid | Duplicate | Unmapped | NeedsReview`.
-Flagged rows land in `review_queue`. Kiln-temp `Invalid` rows are corrected via the
-neighbor method into `kiln_temperature_readings.corrected_value` (raw `value` preserved);
-the other flagged classes (wagon>80, chamber>40, grade1>total, humidity) remain OPEN
-per owner directive ("واگنها رو هم تغییر نده"). Counts after first load + kiln fix:
-- `Invalid`: 134 resolved (kiln temp ×10/×100 typo, neighbor-corrected), 35 still open
-- `Warning`: 1153 open (wagon>80, chamber>40, low-temp, etc.)
+## 2. Load dimensions (operators / chambers / products)
+```bash
+python scripts/historical_import/extract_dimensions.py
+python scripts/historical_import/load_dimensions.py
+```
+
+## 3. Load fact modules (batched, idempotent ETL)
+Each script clears only its own module tables first (TRUNCATE inside), so re-running
+is safe and never doubles rows.
+```bash
+python scripts/historical_import/etl_setting.py
+python scripts/historical_import/etl_dryer.py
+python scripts/historical_import/etl_kiln.py
+python scripts/historical_import/etl_packing.py
+```
+
+## 4. Verify (ad-hoc row counts + FK integrity)
+```bash
+python -c "import psycopg2; c=psycopg2.connect(host='localhost',port=5433,user='postgres',password='test',dbname='postgres'); cur=c.cursor()
+for t in ['setting_event','setting_wagon','dryer_cycle','dryer_reading','kiln_push','kiln_wagon','kiln_reading','kiln_sensor','packing_header','packing_wagon']:
+    cur.execute('SELECT count(*) FROM '+t); print(t, cur.fetchone()[0])"
+```
+Expected: setting_event 20520 · setting_wagon 67683 · dryer_cycle 18558 · dryer_reading 18370 ·
+kiln_push 38781 · kiln_wagon 38818 · kiln_reading 697312 · kiln_sensor 18 ·
+packing_header 8543 · packing_wagon 93381.
+
+## 5. Review queue (legacy frozen-app path — superseded)
+The frozen-app `review_queue` export (`export_review_csv.py` → `xls/consolidated/review_queue_export.xlsx`)
+is preserved for plant handoff of the 27 flag-only wagon/chamber rows. The new staging ETLs log
+structural rejects into per-module reject handling instead.
+
+## Validation model (staging ETL)
+- Each row classification: `Valid | Warning | Invalid | Unmapped`. Malformed dates / out-of-range
+  temps / `HH:MM:SS` time casts are skipped-and-counted, never fabricated.
+- Kiln: 83 pushes have <18 sensor readings — genuine Excel gaps, recovered where any row of the
+  push carries the value (merge-first-valid logic).
+- Setting: 11 source rows rejected (row-shift anomalies) and logged.
+- Dryer: 3 source rows rejected and logged.
 
 ## Idempotency
-All fact tables use `natural_key UNIQUE` + `ON CONFLICT DO UPDATE`. Re-running merges, never duplicates. 1397 (months 11–12 missing) loads idempotently when completed post-build.
+Each `etl_*.py` TRUNCATEs its own module tables at start, then re-inserts — re-running yields the
+same counts, never duplicates. 1397 (months 11–12 missing) loads idempotently when completed.
 
 ## Notes
-- `product_code` = canonical (P-SOFAL-KHODRANG), re-derived from (نوع محصول + شرح محصول) per M1-A1.
-- `month`/`day` are TEXT (source mixes numbers and month names).
-- `setting_wagons` parses 1–4 repeating wagon blocks (cols 12-19,20-27,28-35,36-43); block count varies per file.
-- `glaze` kept as free text (typo-fix only: اخراء→اخرا).
-- `grade2` ≡ waste; carried if present, blank if absent (M1-E1).
+- `product` dimension is shared across modules (`product_code_kiln` / `product_code_packing`).
+- `kiln_wagon.setting_wagon_id` is a nullable link to `setting_wagon` (matched downstream).
+- Date format normalized to `YYYY.MM.DD`; Packing source uses `YYYY/MM/DD` (slashes) → normalized.
 
-*First successful load: 2026-08-20 — 893k fact rows + dimensions, 0 FK orphans.*
+*Staging load first completed: 2026-08-26. Pre-build load (legacy `load_*.py` / wide tables) is
+superseded — see README deviation note + `docs/M2_5_ERD_SCHEMA.md` for the target ERD.*
