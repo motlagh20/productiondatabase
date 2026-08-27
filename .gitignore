@@ -66,3 +66,9 @@ xls/real data/
 # xls/consolidated/ holds operator-code-normalized copies built from xls/real data/
 # for detailed review. Same rule as above: local design artifact, never in git.
 xls/consolidated/
+
+# Legacy DB backups (local only, never commit)
+.db_backup_kiln/
+
+# Local archive of superseded prototype CSVs (zipped, not tracked)
+xls/archive/

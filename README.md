@@ -20,7 +20,7 @@ This project has been **redefined** per the [Master Project Rules](docs/00_MASTE
 | Packing | `packing_header` / `packing_wagon` | 8,543 / 93,381 | — |
 
 **Deviation note (ADR-0001):** this staging build diverged from the pre-build ERD (`docs/M2_5_ERD_SCHEMA.md`)
-table names — e.g. `kiln_pushes`+`kiln_temperature_readings` (wide) became `kiln_push`+`kiln_wagon`+`kiln_reading`+`kiln_sensor` (row-oriented, 18 sensors). The staging tables are the working load; the ERD remains the target for the final app schema. Legacy reference tables (`kiln_pushes`, `kiln_temperature_readings`, `wagon_master`, `packing_records`) still coexist from the frozen app and are being superseded, not yet dropped (pending owner confirmation).
+table names — e.g. `kiln_pushes`+`kiln_temperature_readings` (wide) became `kiln_push`+`kiln_wagon`+`kiln_reading`+`kiln_sensor` (row-oriented, 18 sensors). The staging tables are the working load; the ERD remains the target for the final app schema. Legacy frozen-app tables (`kiln_pushes`, `kiln_temperature_readings`, `kiln_temp_correction`, `wagon_master`, `packing_records`, `v_clean_kiln_temps`) were **dropped 2026-08-27** after a verified staging load; a `pg_dump` backup is kept at `.db_backup_kiln/`.
 
 **Current phase:** Data profiling & migration blueprints **complete** (see [OVERVIEW.md](docs/OVERVIEW.md)). Master Product & Architecture Specification v0.1 + ADRs 0001–0006 approved for the documentation-first path. No new application code exists yet — see [ADR-0001](adr/ADR-0001-documentation-first-development.md). Ready for M0 architecture sign-off.
 
