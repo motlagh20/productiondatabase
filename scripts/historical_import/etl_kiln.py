@@ -97,19 +97,22 @@ def prod_get(code):
     pid = cur.fetchone()[0]; prod_by_code[code]=pid
     return pid
 
-# group rows by (date,time)
+# group rows by source_row (each Excel row = one unique push; time is NOT unique)
+# Per owner (2026-08-28): a push is one physical event; two rows never share a time,
+# but the source has 33 (date,time) collisions from operator typos -> use source_row as key.
 pushes = {}            # key -> dict(push tuple, wagons list, readings list)
 order = 0
 for r in ws.iter_rows(min_row=2, values_only=True):
     order += 1
+    src = to_int(r[0])            # source_row (Excel row number, unique)
     date_j = norm_date(r[di])
     if date_j is None:  # malformed source date -> skip this row (kept traceable via source_row elsewhere)
         continue
     t = s2time(r[ti])
-    key = "%s|%s" % (date_j, t)
+    key = src                      # unique per row
     if key not in pushes:
         pushes[key] = dict(date=date_j, time=t, op=op_get(r[oci], r[oni]), prod=prod_get(r[pi]),
-                           dur=s2interval(r[6]) if len(r)>6 else None, src=to_int(r[0]),
+                           dur=s2interval(r[6]) if len(r)>6 else None, src=src,
                            dc=str(r[dci]).strip() if r[dci] else None,
                            dch=str(r[dchi]).strip() if r[dchi] else None,
                            fl=str(r[fi]).strip() if r[fi] else None,
@@ -128,14 +131,16 @@ for r in ws.iter_rows(min_row=2, values_only=True):
 
 # build push list and insert one-by-one so RETURNING ids are in input order
 # (execute_values + page_size is NOT order-safe for RETURNING across batches)
+# push_seq = physical row order (source_row sorted), since a push is one unique event.
 push_data = list(pushes.values())
+push_data.sort(key=lambda p: p['src'] if p['src'] is not None else 0)
 ids = []
 wagon_rows = []
 reading_rows = []
-for p in push_data:
-    cur.execute("""INSERT INTO kiln_push(push_date,push_time,operator_id,product_id,push_duration,source_row,date_control,date_changed,flag)
-                   VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING kiln_push_id""",
-                (p['date'], p['time'], p['op'], p['prod'], p['dur'], p['src'], p['dc'], p['dch'], p['fl']))
+for i, p in enumerate(push_data, start=1):
+    cur.execute("""INSERT INTO kiln_push(push_seq,push_date,push_time,operator_id,product_id,push_duration,source_row,date_control,date_changed,flag)
+                   VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING kiln_push_id""",
+                (i, p['date'], p['time'], p['op'], p['prod'], p['dur'], p['src'], p['dc'], p['dch'], p['fl']))
     ids.append(cur.fetchone()[0])
 key_list = list(pushes.keys())
 for i, pid in enumerate(ids):
