@@ -66,6 +66,5 @@ Base `/api/`. Django REST Framework, token auth.
 
 ## 8. Gate to implementation
 
-M5 docs (this file + ADR-0007) must be **approved by owner** before any Django model or React
-component is written (ADR-0001). Next: `M5_SRS.md` (expand §3), `M5_API_CONTRACT.md` (expand §4),
-then code.
+M5 docs (this file + ADR-0007) are **approved by owner** (2026-08-28). Next: `M5_SRS.md` (expand §3),
+`M5_API_CONTRACT.md` (expand §4), then Django models + React scaffold.

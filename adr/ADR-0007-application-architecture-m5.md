@@ -1,6 +1,6 @@
 # ADR-0007 — M5 Application Architecture (Django + DRF / React / PostgreSQL)
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-08-28
 - **Deciders:** Project owner
 - **Related:** ADR-0001 (doc-first), ADR-0002 (freeze legacy), ADR-0004 (PMS UX donor),
