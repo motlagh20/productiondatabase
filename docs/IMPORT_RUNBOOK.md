@@ -23,6 +23,7 @@ psql -h localhost -p 5433 -U postgres -d postgres -f sql/schema/30_setting.sql
 psql -h localhost -p 5433 -U postgres -d postgres -f sql/schema/31_dryer.sql
 psql -h localhost -p 5433 -U postgres -d postgres -f sql/schema/32_kiln.sql
 psql -h localhost -p 5433 -U postgres -d postgres -f sql/schema/33_packing.sql
+psql -h localhost -p 5433 -U postgres -d postgres -f sql/schema/34_wagon_linking.sql
 ```
 
 ## 2. Load dimensions (operators / chambers / products)
@@ -41,15 +42,29 @@ python scripts/historical_import/etl_kiln.py
 python scripts/historical_import/etl_packing.py
 ```
 
+## 3b. Link wagons across modules (run AFTER step 3)
+Builds the `wagon` master, sets `wagon_id` on the 3 fact tables, and populates
+`kiln_exit` (the awaiting-discharge list). Idempotent.
+```bash
+python scripts/historical_import/etl_link.py
+```
+Physical model (owner-confirmed 2026-08-27):
+- `wagon_no` is a physical plate NAME (e.g. '12'), not a sequence counter.
+- A push = one Excel row, keyed by `source_row` (NOT date+time — 33 operator-typo
+  (date,time) collisions existed; the old key merged multiple wagons into one push).
+- The kiln is a FIFO conveyor of FIXED capacity 44: a wagon entering at `push_seq` P
+  exits at `push_seq` P+43 deterministically. On exit it waits in `kiln_exit`
+  (awaiting discharge); Packing later takes one or several.
+
 ## 4. Verify (ad-hoc row counts + FK integrity)
 ```bash
 python -c "import psycopg2; c=psycopg2.connect(host='localhost',port=5433,user='postgres',password='test',dbname='postgres'); cur=c.cursor()
-for t in ['setting_event','setting_wagon','dryer_cycle','dryer_reading','kiln_push','kiln_wagon','kiln_reading','kiln_sensor','packing_header','packing_wagon']:
+for t in ['setting_event','setting_wagon','dryer_cycle','dryer_reading','kiln_push','kiln_wagon','kiln_reading','kiln_sensor','kiln_exit','wagon','packing_header','packing_wagon']:
     cur.execute('SELECT count(*) FROM '+t); print(t, cur.fetchone()[0])"
 ```
 Expected: setting_event 20520 · setting_wagon 67683 · dryer_cycle 18558 · dryer_reading 18370 ·
-kiln_push 38781 · kiln_wagon 38818 · kiln_reading 697312 · kiln_sensor 18 ·
-packing_header 8543 · packing_wagon 93381.
+kiln_push 38820 · kiln_wagon 38820 · kiln_reading 698014 · kiln_sensor 18 · kiln_exit 38710 ·
+wagon 89 · packing_header 8543 · packing_wagon 93381.
 
 ## 5. Review queue (legacy frozen-app path — superseded)
 The frozen-app `review_queue` export (`export_review_csv.py` → `xls/consolidated/review_queue_export.xlsx`)

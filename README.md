@@ -10,14 +10,17 @@ This project has been **redefined** per the [Master Project Rules](docs/00_MASTE
 
 **Source of truth:** `xls/consolidated/All/*.xlsx` (the owner-declared final reference workbooks).
 **DDL:** `sql/schema/30_setting.sql` · `31_dryer.sql` · `32_kiln.sql` · `33_packing.sql`
-**ETL (batched, idempotent):** `scripts/historical_import/etl_setting.py` · `etl_dryer.py` · `etl_kiln.py` · `etl_packing.py`
+**ETL (batched, idempotent):** `scripts/historical_import/etl_setting.py` · `etl_dryer.py` · `etl_kiln.py` · `etl_packing.py` · `etl_link.py` (wagon linking)
 
 | Module | Tables | Loaded rows | Rejects |
 |---|---|---|---|
 | Setting | `setting_event` / `setting_wagon` | 20,520 / 67,683 | 11 |
 | Dryer | `dryer_cycle` / `dryer_reading` | 18,558 / 18,370 | 3 |
-| Kiln | `kiln_push` / `kiln_wagon` / `kiln_reading` / `kiln_sensor` | 38,781 / 38,818 / 697,312 / 18 | — |
+| Kiln | `kiln_push` / `kiln_wagon` / `kiln_reading` / `kiln_sensor` / `kiln_exit` | 38,820 / 38,820 / 698,014 / 18 / 38,710 | — |
 | Packing | `packing_header` / `packing_wagon` | 8,543 / 93,381 | — |
+| Linking | `wagon` (master) | 89 distinct wagons | 110 null `wagon_no` kept as gaps |
+
+**Wagon linking (2026-08-28):** `etl_link.py` builds the `wagon` master, sets `wagon_id` on the 3 fact tables, and populates `kiln_exit` (awaiting-discharge list). Physical model: `wagon_no` = plate name (not counter); kiln = FIFO conveyor of fixed capacity **44** (wagon entering at `push_seq` P exits at P+43). Push key = `source_row` (not date+time — 33 operator-typo duplicates existed). **Known gaps (kept, not dropped per SAFE-APPLY):** 110 kiln rows with NULL `wagon_no` → `xls/consolidated/kiln_null_wagon_no.csv`; rows 11784/11785 are a date,time duplicate (operator typo) pending paper-ledger review.
 
 **Deviation note (ADR-0001):** this staging build diverged from the pre-build ERD (`docs/M2_5_ERD_SCHEMA.md`)
 table names — e.g. `kiln_pushes`+`kiln_temperature_readings` (wide) became `kiln_push`+`kiln_wagon`+`kiln_reading`+`kiln_sensor` (row-oriented, 18 sensors). The staging tables are the working load; the ERD remains the target for the final app schema. Legacy frozen-app tables (`kiln_pushes`, `kiln_temperature_readings`, `kiln_temp_correction`, `wagon_master`, `packing_records`, `v_clean_kiln_temps`) were **dropped 2026-08-27** after a verified staging load; a `pg_dump` backup is kept at `.db_backup_kiln/`.
