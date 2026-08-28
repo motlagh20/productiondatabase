@@ -1,6 +1,6 @@
 # Project Overview — Manufacturing Analytics & Execution Platform
 
-> Status: **Documentation & data-profiling phase complete.** No platform code written yet (per ADR-0001: documentation-first). All M0 open items are resolved or non-blocking: items 1 (product conflicts) & 4 (temp vocab) done from the workbooks; items 2 (1397 completion) & 3 (typo correction) are post-build data-completion tasks via idempotent re-import. **Ready for M0 architecture sign-off.**
+> Status: **Historical data load complete & verified** (4 MES modules + wagon linking on PostgreSQL 16 staging; see IMPORT_RUNBOOK). M0–M4 documents approved (ADRs 0001–0006). **M5 (platform architecture) in documentation phase** — ADR-0007 + M5_PLATFORM_PLAN written, pending owner approval. No platform code written yet (per ADR-0001). **Ready for M5 doc approval → Django/React build.**
 
 ## What we did (read-only analysis + migration blueprints)
 
