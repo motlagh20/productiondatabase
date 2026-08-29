@@ -39,10 +39,10 @@ Excluded (P2 / analytic): `راندمان` rollups, `Rand_*`, `Analyse*`, `Tabar
 ### 3.3 Setting → `setting_operations` + `setting_shift_unloads` + `setting_wagons` + `wagon_master`
 - **Header** (`setting_operations`): date_jalali, shift, supervisor_id, operator_code, personnel_count, chamber_no, product, finger_count, column_count, dryer_waste. Batch key = `ID` (NOT surrogate PK).
 - **Per shift-unload** (`setting_shift_unloads`): composite (ID, shift).
-- **Per wagon** (`setting_wagons`): FK SettingID → ID; wagon_no, glaze, start_time, end_time, packages.
+- **Per wagon** (`setting_wagons`): FK SettingID → ID; wagon_no, glaze_id (FK→glaze master), glaze_type (raw text), start_time, end_time, packages.
 - **wagon_master**: aggregate `wagon_no` across all ops (cross-chamber/cross-shift continuous entity, ADR-0005).
 - **Repeating blocks**: Set `Data` has 1–4 wagon blocks (cols 12–19, 20–27, 28–35, 36–43) → parse by block pattern, not fixed index.
-- **Glaze**: kept as **text** (typo-fix only: اخراء→اخرا). Validate against `glaze_mapping_blueprint.csv`.
+- **Glaze**: `glaze` is an independent **dimension table** (`glaze` with glaze_code/glaze_name/formula/description, 36_glaze.sql). `setting_wagon.glaze_id` links to it; raw `glaze_type` text retained for typo review (ADR-0008). Seeded 7 distinct historical glazes; 9 typo rows (??, 20:45, etc.) left unmapped.
 - **Bounds:** chamber 1–40, shift 1–3, wagon 1–80 (flag).
 
 ### 3.4 Packing → `packing_records`

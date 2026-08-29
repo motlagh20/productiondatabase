@@ -21,7 +21,7 @@ config_shift_pattern  ─┤  (parameter tables, P1)
 config_wagon_bounds  ─┤
 config_temp_bounds   ─┘
 
-operators (personnel)        products (composite)       glazes (text vocab)
+operators (personnel)        products (composite)       glaze (dimension: code/name/formula)
      │                            │                          │
      └──── reference by FK ───────┴──────────────────────────┘
 
@@ -52,7 +52,8 @@ config_drying_cadence(id, hours_step, note)             -- 3
 operators(id PK, code, full_name, role, source)         -- full_name immutable (§32)
 products(id PK, canonical_code, mold_type, glaze,        -- composite (ADR-0006)
          description, source)
-glazes(id PK, glaze_value, normalized, is_combined, note) -- text vocab, validation only
+glaze(glaze_id PK, glaze_code UNIQUE, glaze_name, formula, description,  -- dimension master (36_glaze.sql)
+       is_combined)
 ```
 
 ### 3.3 Dryer
@@ -88,7 +89,7 @@ setting_operations(id PK, batch_key TEXT,  -- the legacy ID, NOT surrogate
                    finger_count, column_count, dryer_waste, source)
 setting_shift_unloads(id PK, operation_id FK, shift, sub_id,
                        UNIQUE(operation_id, shift))
-setting_wagons(id PK, shift_unload_id FK, wagon_no, glaze TEXT,
+setting_wagons(id PK, shift_unload_id FK, wagon_no, glaze_id FK→glaze, glaze_type TEXT,  -- glaze_id = clean FK, glaze_type = raw (typos kept)
                start_time, end_time, packages, source)
 wagon_master(id PK, wagon_no UNIQUE,
              first_seen, last_seen, total_packages,  -- aggregated across ops

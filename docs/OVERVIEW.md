@@ -77,10 +77,12 @@ final sources `xls/consolidated/All/*.xlsx` via `sql/schema/30–33_*.sql` + `sc
 
 | Module | Tables | Loaded rows | Rejects | ETL verified |
 |---|---|---|---|---|
-| Setting | `setting_event` / `setting_wagon` | 20,520 / 67,683 | 11 | yes (ad-hoc) |
 | Dryer | `dryer_cycle` / `dryer_reading` | 18,558 / 18,370 | 3 | yes (ad-hoc) |
-| Kiln | `kiln_push` / `kiln_wagon` / `kiln_reading` / `kiln_sensor` | 38,781 / 38,818 / 697,312 / 18 | — | yes (ad-hoc, live) |
+| Setting | `setting_event` / `setting_wagon` | 20,522 / 67,694 | 10 | yes (ad-hoc) |
+| Kiln | `kiln_push` / `kiln_wagon` / `kiln_reading` / `kiln_sensor` / `kiln_exit` | 38,820 / 38,820 / 698,014 / 18 / 38,710 | — | yes (ad-hoc, live) |
 | Packing | `packing_header` / `packing_wagon` | 8,543 / 93,381 | — | yes (ad-hoc, live) |
+| Glaze (dimension) | `glaze` | 7 seeded | — | n/a |
+| Trip spine | `wagon_trip` (empty — populated by M5 app) | 0 | — | n/a |
 
 **Notes / honest caveats:**
 - Verification was **ad-hoc** (fresh inline SQL counts + FK-orphan checks), *not* a committed test suite. No CI/test harness exists yet.
