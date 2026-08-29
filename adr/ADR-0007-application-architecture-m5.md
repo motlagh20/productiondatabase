@@ -1,6 +1,9 @@
 # ADR-0007 — M5 Application Architecture (Django + DRF / React / PostgreSQL)
 
-- **Status:** Accepted
+- **Status:** Accepted — build phase started 2026-08-29. The F2→F7 vertical slice is implemented
+  (`backend/` + `frontend/`, PR [#1](https://github.com/motlagh20/productiondatabase/pull/1)).
+  Schema-ownership open question resolved: Django owns a fresh `mes_app` schema (migrations);
+  staging stays a read-only historical source via a second DB alias.
 - **Date:** 2026-08-28
 - **Deciders:** Project owner
 - **Related:** ADR-0001 (doc-first), ADR-0002 (freeze legacy), ADR-0004 (PMS UX donor),

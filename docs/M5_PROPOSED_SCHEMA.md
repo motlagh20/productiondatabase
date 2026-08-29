@@ -1,5 +1,8 @@
 # M5_PROPOSED_SCHEMA — Consolidated schema reference (100%)
 
+> Status: **F2–F7 slice models now exist** in `backend/mes/models/` (6 dimensions + 7 trip-spine
+> tables, Django-owned `mes_app` DB), mirroring this map. This file remains the schema reference.
+
 > Single source of truth for the M5 application schema. Maps the **conceptual model** to the
 > **actual staging tables** (already loaded, DDL `sql/schema/30–36_*.sql`), and explicitly
 > flags the 30% of the system that is ETL-heavy (sensor temps, FIFO linking, glaze, trip).

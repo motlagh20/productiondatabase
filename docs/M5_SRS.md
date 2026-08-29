@@ -1,8 +1,8 @@
 # M5_SRS — Software Requirements Specification
 
 > Companion to [M5_PLATFORM_PLAN.md](M5_PLATFORM_PLAN.md) and [ADR-0007](adr/ADR-0007-application-architecture-m5.md).
-> Per MASTER_SPEC §772 / ADR-0001: documentation milestone — no code yet.
-> Status: Proposed (owner approval pending after review).
+> Status: **Approved + partially implemented.** The F2→F7 vertical slice is built
+> (2026-08-29, see [M5_PLATFORM_PLAN §9](M5_PLATFORM_PLAN.md)); F1/F6/F8/F9/F10 remain specified but deferred.
 
 ## 1. Introduction
 

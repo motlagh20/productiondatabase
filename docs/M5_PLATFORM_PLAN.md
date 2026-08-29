@@ -1,6 +1,7 @@
-# M5 — Platform Architecture & Build Plan (Documentation Milestone)
+# M5 — Platform Architecture & Build Plan
 
-> **Per MASTER_SPEC §772, M5 produces documents only — no application code.**
+> **Status: build in progress.** The M5 docs were approved 2026-08-28 (gate passed per §8);
+> the first thin vertical slice (F2→F7) is implemented — see §9.
 > Companion: [ADR-0007](adr/ADR-0007-application-architecture-m5.md) (architecture decision).
 
 ## 1. Scope
@@ -80,5 +81,40 @@ Base `/api/`. Django REST Framework, token auth.
 
 ## 8. Gate to implementation
 
-M5 docs (this file + ADR-0007) are **approved by owner** (2026-08-28). Next: `M5_SRS.md` (expand §3),
-`M5_API_CONTRACT.md` (expand §4), then Django models + React scaffold.
+M5 docs (this file + ADR-0007) are **approved by owner** (2026-08-28). `M5_SRS.md` (expand §3),
+`M5_API_CONTRACT.md` (expand §4) drafted; Django models + React scaffold built (2026-08-29).
+
+## 9. Implementation status (2026-08-29)
+
+The first **thin vertical slice** is built: F2 Setting load → F3 Kiln push → F4 Kiln exit →
+F5 Packing → F7 Wagon journey trace. 50 files, +5622 lines in `backend/` and `frontend/`.
+PR [#1](https://github.com/motlagh20/productiondatabase/pull/1) (`m5-slice-build` → `m0-docs`).
+
+### What was built
+- **Backend (`backend/`):** Django 6.1 + DRF project, single `mes` app. Two PostgreSQL DB
+  aliases — `default` → `mes_app` (Django-owned, migrations) + `staging` → historical
+  source (read-only, DB router prevents writes). TokenAuthentication + CORS for Vite.
+- **Models:** 6 dimension tables (Operator, Chamber, Product, Glaze, Wagon, KilnSensor) +
+  7 spine/fact tables (WagonTrip with 8-state machine, SettingLoad, KilnPush, KilnReading,
+  KilnExit, PackingHeader, PackingWagon).
+- **Service layer (`mes/services.py`):** trip assignment, FIFO-44 push ceiling, exit_push_seq
+  = entry_push_seq + 43, packing close with `select_for_update()` locking. All functions
+  `@transaction.atomic`. Replay-safe via `client_token` UNIQUE on SettingLoad, KilnPush,
+  PackingHeader.
+- **Endpoints:** 5 write (setting loads, kiln pushes/exits, packing headers) + 1 journey read
+  + 6 dimension dropdowns + 1 awaiting-discharge list + 1 auth token obtain. All behind
+  `IsAuthenticated`.
+- **Dimension seeding:** `seed_dimensions` management command reads staging once via raw SQL;
+  idempotent `update_or_create`. Wagon filter enforces clean-core 1..80 range at the seed
+  boundary.
+- **Tests:** 10 acceptance tests covering FIFO-44 ceiling + slot freeing, exit=entry+43,
+  one-trip-across-days spine, replay idempotency, out-of-range plate rejection, plate dropdown
+  range, packing state guard, unauthenticated rejection, service-layer rule violation.
+- **Frontend (`frontend/`):** React 19 + TypeScript + Vite + Tailwind v4. Persian RTL layout
+  (Vazirmatn font, `lang="fa" dir="rtl"`). Pages: Login, SettingLoadForm, KilnPushForm (18
+  sensors), KilnExitForm, PackingForm (multi-wagon from awaiting-discharge), JourneyPage
+  (per-plate timeline). Axios + Token auth, Jalali date helpers, clean-core dropdowns.
+
+### Deferred (not this slice)
+- F1 Dryer cycle, F6 occupancy dashboard, F8 daily counts, F9 dimension CRUD, F10 correction
+  workflow, N1 offline queue, per-role route guards, waiting-hall temperature logging.

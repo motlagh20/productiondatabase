@@ -1,6 +1,6 @@
 # Project Overview — Manufacturing Analytics & Execution Platform
 
-> Status: **Historical data load complete & verified** (4 MES modules + wagon linking on PostgreSQL 16 staging; see IMPORT_RUNBOOK). M0–M4 documents approved (ADRs 0001–0006). **M5 (platform build) documentation in progress** — ADR-0007 + ADR-0008 Accepted; M5_PLATFORM_PLAN + M5_SRS + M5_API_CONTRACT drafted. No platform code written yet (per ADR-0001). Ready for M5 doc approval → Django/React build.
+> Status: **M5 vertical slice build complete** (2026-08-29). The thin F2→F7 trip spine (Setting load → Kiln push → Kiln exit → Packing → Wagon journey trace) is implemented as a Django + DRF backend (`backend/`) and React 19 + TypeScript + Tailwind v4 frontend (`frontend/`). The app DB (`mes_app`) is Django-owned (migrations); staging remains a read-only historical source. Dimensions seeded from staging via `seed_dimensions`. PR [#1](https://github.com/motlagh20/productiondatabase/pull/1) open (`m5-slice-build` → `m0-docs`). Historical data load verified (M0–M4). ADRs 0001–0008 accepted.
 
 ## What we did (read-only analysis + migration blueprints)
 
@@ -104,5 +104,5 @@ Items 2 & 3 are **not M0 blockers**: the import is append/idempotent, so once th
 
 **Analytic columns EXCLUDED from migration** (owner decision): `راندمان` rollups, `Rand_Tize`/`Rand_sofal`, `Analyse`/`Analyse1`, `Tabarestan`, `Note`, etc. — derived/summary views, re-designed later from migrated facts.
 
-## Next phase (only after M0)
-Write the platform code (Django+DRF / React / PostgreSQL) per the frozen specs + ADRs. Until then: **documents-first, no app code.**
+## Next phase
+Continue M5 build: deferred features (F1 Dryer, F6 occupancy dashboard, F8 daily counts, F9 dimension CRUD, F10 flag workflow, N1 offline queue), Django test suite against staging-seeded data, production deployment hardening.

@@ -1,132 +1,125 @@
-# M5_API_CONTRACT — v1 (draft)
+# M5_API_CONTRACT — v2 (as built)
 
 > Companion to [M5_SRS.md](M5_SRS.md) and [M5_PLATFORM_PLAN.md](M5_PLATFORM_PLAN.md).
-> Status: Proposed. No code yet (ADR-0001).
+> Status: **F2–F5 + F7 implemented** (2026-08-29, PR [#1](https://github.com/motlagh20/productiondatabase/pull/1)).
+> F1 / F6 / F8 / F9 / F10 remain draft (§8). This v2 documents the implemented surface;
+> v1 draft shapes that differ are called out inline.
 
-Base URL: `/api/`. Auth: **DRF Token** (`Authorization: Token <key>`).
+Base URL: `/api/`. Auth: **DRF Token** (`Authorization: Token <key>`) — all endpoints require it.
 All dates: Jalali `YYYY.MM.DD` in/out; all times `HH:MM`. Persian/RTL UI consumes these.
 
-## 1. Dryer (F1 — first production step)
+**Replay-safety (implemented):** every write accepts an optional `client_token` (UUID, UNIQUE).
+Retrying the same POST with the same token returns the original record instead of duplicating it
+(offline-tolerant, N1-ready).
 
-### POST /api/dryer/cycles/
-Log a drying cycle (clay body dried in chamber 1..40).
+## 1. Auth
+
+### POST /api/token/
 ```json
-{
-  "chamber_id": 5,
-  "load_date": "1403.03.01", "load_time": "08:00",
-  "unload_date": "1403.03.01", "unload_time": "16:00",
-  "operator_id": 3, "product_id": 7, "finger_count": 4,
-  "readings": [ {"hour_offset":0,"humidity_pct":62,"temperature_c":38}, … ]  // up to 22
-}
+{ "username": "…", "password": "…" }
 ```
-Response `201`: `{ "dryer_cycle_id": 881 }`
+Response `200`: `{ "token": "…" }`
 
-## 2. Setting (F2 — after dryer)
+## 2. Setting (F2 — implemented)
 
 ### POST /api/setting/loads/
-Load a dried body onto a wagon → opens a `wagon_trip` (trip_id assigned at start).
+Load a dried body onto a wagon → opens a `wagon_trip`. `trip_id` is **system-assigned**, never typed
+(v1 draft had `plate_name`/`glaze_type` free-text — replaced by FK ids + dropdown validation).
 ```json
 {
-  "plate_name": "12",
-  "product_id": 7,
-  "glaze_type": "مات",
-  "operator_id": 3,
+  "plate": "12",                       // must exist in wagon dimension (dropdown 1..80)
+  "chamber_code": "5",                 // optional; must exist in chamber dimension (1..40)
+  "product_id": 7, "glaze_id": 2, "operator_id": 3,
   "shift": 1,
-  "chamber_ref": 5,            // source dryer chamber (1..40)
-  "start_time": "14:30",
-  "end_time": "16:45",
-  "packages": 64,
-  "khesht_count": 120,
-  "load_date": "1403.03.01"
+  "date_jalali": "1405.06.07",
+  "start_time": "14:30", "end_time": "16:45",
+  "packages": 64, "khesht_count": 120,
+  "client_token": "9b2f…"
 }
 ```
 Response `201`: `{ "trip_id": 1042, "setting_load_id": 5531, "status": "in_progress" }`
 
-### GET /api/setting/loads/?from=&to=&plate=
-List loads (manager/supervisor). Filters by Jalali date range or plate name.
-
-## 3. Kiln (F3, F4)
+## 3. Kiln (F3, F4 — implemented)
 
 ### POST /api/kiln/pushes/
-Register one kiln push (1 wagon, 18 sensors).
+Register one kiln push (1 wagon, up to 18 sensor readings as a list — v1 draft's wide 18-key
+`sensors` map became `readings[]`). `push_seq` is server-computed; the service layer rejects a push
+when 44 wagons are already in the tunnel (FIFO-44).
 ```json
 {
   "trip_id": 1042,
-  "push_date": "1403.03.03", "push_time": "08:20",
-  "operator_id": 5, "product_id": 7, "push_duration": "2:10",
-  "sensors": { "temp_exhaust": 120, "temp_preheat01": 200, … }   // 18 keys
+  "push_date": "1405.06.08", "push_time": "08:20",
+  "shift": 1, "operator_id": 5, "product_id": 7,
+  "readings": [ { "sensor_code": "temp_exhaust", "temperature_c": 120 }, … ],
+  "client_token": "9b2f…"
 }
 ```
-Response `201`: `{ "kiln_push_id": 2201, "push_seq": 881 }`
+Response `201`: `{ "kiln_push_id": 2201, "trip_id": 1042, "push_seq": 881, "status": "in_tunnel" }`
 
 ### POST /api/kiln/exits/
-Mark a wagon discharged → awaiting-discharge list.
+Mark a wagon discharged → awaiting-discharge list. `exit_push_seq = entry_push_seq + 43` is
+**server-computed** (v1 draft had the client supply it — now rejected by design).
 ```json
-{ "trip_id": 1042, "exit_push_seq": 924 }
+{ "trip_id": 1042, "exit_date": "1405.06.10" }
 ```
-Response `201`: `{ "kiln_exit_id": 774, "awaiting_discharge": true }`
+Response `201`: `{ "kiln_exit_id": 774, "trip_id": 1042, "entry_push_seq": 881, "exit_push_seq": 924, "status": "awaiting_discharge" }`
 
-## 4. Packing (F5)
+## 4. Packing (F5 — implemented)
 
 ### POST /api/packing/headers/
-Pack 1+ wagons from awaiting-discharge, close the trip.
+Pack 1+ wagons from awaiting-discharge; each trip closes → `completed`. At least one wagon required.
 ```json
 {
-  "pack_date": "1403.03.10", "shift": 2, "controller_id": 9,
+  "pack_date": "1405.06.15", "shift": 2, "controller_id": 9, "worker_count": 4,
   "wagons": [
-    { "trip_id": 1042, "grade1_count": 58, "grade2_count": 4,
-      "waste_count": 2, "total_count": 64, "efficiency_pct": 96.9 }
-  ]
+    { "trip_id": 1042, "product_id": 7,
+      "total_count": 64, "grade1_count": 58, "grade2_count": 4, "waste_count": 2 }
+  ],
+  "client_token": "9b2f…"
 }
 ```
-Response `201`: `{ "packing_header_id": 332, "trip_status": "completed" }`
+Response `201`: `{ "packing_header_id": 332 }`
 
-## 5. Dashboards (F6–F8)
+## 5. Dashboards (F7 — implemented; F6/F8 deferred)
 
-### GET /api/dashboard/kiln-occupancy/
+### GET /api/dashboard/wagon-journey/?plate=12
+One trip-spine timeline per historical trip of that plate (v1 draft returned a bare array —
+the implemented response wraps it):
 ```json
-{ "in_tunnel": 41, "capacity": 44, "awaiting_discharge": 12 }
+{ "plate": "12", "trips": [ { "trip_id": 1042, "status": "completed", … } ] }
 ```
 
-### GET /api/dashboard/wagon-journey/?plate=12&from=1403.01.01&to=1403.12.29
+### GET /api/dashboard/awaiting-discharge/
+Trips ready to pack — feeds the Packing form's wagon picker.
 ```json
-[{
-  "trip_id": 1042, "plate": "12", "status": "completed",
-  "dryer":    {"cycle_id":881,"load":"1403.03.01 08:00","unload":"1403.03.01 16:00"},
-  "setting":  {"setting_load_id":5531,"date":"1403.03.01","chamber_ref":5,"packages":64},
-  "waiting_hall": {"entered":"1403.03.01 16:45"},
-  "kiln":     {"push_seq":881,"entry":"1403.03.03 08:20","exit_push_seq":924},
-  "packing":  {"header_id":332,"date":"1403.03.10","grade1":58,"waste":2}
-}]
+[ { "trip_id": 1042, "plate": "12" } ]
 ```
 
-### GET /api/dashboard/daily-counts/?from=&to=
-```json
-[ {"date":"1403.03.01","setting_loads":20,"kiln_pushes":18,"packed":15}, … ]
-```
+## 6. Dimensions (F9 — GET implemented; CRUD deferred)
 
-## 6. Dimensions (F9)
+Dropdown feeds only (clean-core per ADR-0008 — forms consume these, never free text):
+- `GET /api/dimensions/operators/` → `operator_id, operator_code, full_name`
+- `GET /api/dimensions/products/` → `product_id, product_name_setting, product_code_kiln, product_code_packing`
+- `GET /api/dimensions/glazes/` → `glaze_id, glaze_code, glaze_name`
+- `GET /api/dimensions/wagons/` → `wagon_id, wagon_name`
+- `GET /api/dimensions/chambers/` → `chamber_id, chamber_code, chamber_type`
+- `GET /api/dimensions/sensors/`
 
-- `GET/POST/PUT/DELETE /api/dimensions/operators/`
-- `GET/POST/PUT/DELETE /api/dimensions/chambers/`
-- `GET/POST/PUT/DELETE /api/dimensions/products/`
-- `GET/POST/PUT/DELETE /api/dimensions/glazes/`
-  ```json
-  { "glaze_code": "AKHRA", "glaze_name": "اخرا", "formula": "…", "description": "لعاب اخرا", "is_combined": false }
-  ```
+`POST/PUT/DELETE` on dimensions is deferred to F9.
 
-## 7. Correction workflow (F10)
+## 7. Validation rules (enforced server-side, implemented)
 
-### POST /api/entries/{module}/{id}/flag/
-Flag an entry as suspect (typo/date error). Keeps raw value, logs to review table.
-```json
-{ "reason": "تاریخ اشتباه تایپ شده", "flag_type": "date_error" }
-```
-Response `202`: `{ "flag_id": 55, "original_value_preserved": true }`
+- `plate` must exist in the wagon dimension (clean 1..80 set enforced at the seed boundary) — typos like 81 cannot enter.
+- `chamber_code` must exist in the chamber dimension (1..40).
+- Kiln FIFO-44: push rejected when the tunnel is full; `exit_push_seq = entry_push_seq + 43` always.
+- Trip state machine validated at every transition (load→`in_progress`, push→`in_tunnel`, exit→`awaiting_discharge`, pack→`completed`).
+- All writes require a valid token; all service functions run `@transaction.atomic`; packing uses row locking (`select_for_update`).
+- Raw values immutable; corrections are flag-only (MASTER_SPEC §32/§44 — F10 deferred).
 
-## 8. Validation rules (enforced server-side)
-- `plate_name` ∈ 1..80 (dropdown; rejects typos like 81 at form level).
-- `chamber_ref` ∈ 1..40 (Dryer chambers).
-- Kiln capacity: dashboard caps display at 44; back-end asserts `exit_push_seq = entry_push_seq + 43`.
-- All writes require valid token + role permission.
-- Raw values immutable; corrections are flag-only (MASTER_SPEC §32/§44).
+## 8. Deferred endpoints (v1 draft — not yet built)
+
+- F1: `POST /api/dryer/cycles/` + 22 hourly readings (chamber 1..40)
+- F6: `GET /api/dashboard/kiln-occupancy/` → `{ in_tunnel, capacity: 44, awaiting_discharge }`
+- F8: `GET /api/dashboard/daily-counts/?from=&to=`
+- F9: dimension CRUD
+- F10: `POST /api/entries/{module}/{id}/flag/` — correction workflow
