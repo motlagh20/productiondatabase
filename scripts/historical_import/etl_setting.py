@@ -59,6 +59,9 @@ def reject(srow, reason, raw):
     cur.execute("INSERT INTO etl_reject(module,source_row,reason,raw_text) VALUES('setting',%s,%s,%s)",
                 (srow, reason, raw[:500] if raw else None))
 
+# ---- idempotent: clear prior load before re-loading ----
+cur.execute("TRUNCATE setting_wagon, setting_event RESTART IDENTITY CASCADE")
+
 # ---- seed dimensions ----
 ops=set(); sups=set(); prods=set(); chams=set()
 rows=list(ws.iter_rows(min_row=2, values_only=True))
@@ -77,10 +80,20 @@ for nm in sorted(sups):
     if nm in op_map:
         cur.execute("UPDATE operator SET role='supervisor' WHERE operator_id=%s",(op_map[nm],))
 cham_map={}
+DRYER_CHAMBER_MAX = 40   # per owner: chambers 1..40 exist in the Dryer; Setting only REFERENCES them
 for ch in sorted(chams, key=lambda x:int(x)):
     code=f"CH{int(ch):02d}"
-    cur.execute("INSERT INTO chamber(chamber_code,chamber_type,description) VALUES(%s,'SETTING',%s) ON CONFLICT(chamber_code) DO UPDATE SET description=EXCLUDED.description RETURNING chamber_id",(code,f"Chamber {ch}"))
+    # Setting has NO own chambers; chamber_no is a REFERENCE to the source Dryer chamber.
+    # So every chamber seen in Setting must be a Dryer chamber (type DRYER, not SETTING).
+    cur.execute("""INSERT INTO chamber(chamber_code,chamber_type,description)
+                   VALUES(%s,'DRYER',%s)
+                   ON CONFLICT(chamber_code) DO UPDATE SET chamber_type='DRYER', description=EXCLUDED.description
+                   RETURNING chamber_id""",(code,f"Chamber {ch}"))
     cham_map[ch]=cur.fetchone()[0]
+    # flag typo: chamber referenced in Setting but outside the valid Dryer range (1..40)
+    if int(ch) > DRYER_CHAMBER_MAX:
+        cur.execute("INSERT INTO etl_reject(module,source_row,reason,raw_text) VALUES('setting',NULL,%s,%s)",
+                    ('چمبر ستینگ خارج از محدوده خشک‌کن (۱-۴۰) — طبق قاعده مالک: ستینگ چمبر ندارد، فقط ارجاع به چمبر خشک‌کن', code))
 prod_map={}
 for p in sorted(prods):
     cur.execute("INSERT INTO product(product_name_setting) VALUES(%s) ON CONFLICT DO NOTHING RETURNING product_id",(p,))
@@ -91,12 +104,16 @@ for p in sorted(prods):
 
 # ---- load events + wagons ----
 nev=0; nwag=0; nrej=0
+seen_srows=set()   # dedup: source file has duplicated rows; keep first occurrence only
 for r in rows:
     # validate row shape
     try:
         srow = int(r[0]) if r[0] is not None else None
     except (ValueError, TypeError):
         nrej+=1; reject(None, 'ستون ردیف عددی نیست', str(r[:6])); continue
+    if srow in seen_srows:
+        continue   # duplicate source row -> skip (file has 7x repeated data)
+    seen_srows.add(srow)
     date_j = str(r[di]).strip() if r[di] else None
     if not date_j or not re.match(r'^\d{4}\.\d{1,2}\.\d{1,2}$', date_j):
         nrej+=1; reject(srow, 'تاریخ نامعتبر در date_jalali', str(r[:6])); continue
