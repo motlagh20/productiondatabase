@@ -61,6 +61,7 @@ def reject(srow, reason, raw):
 
 # ---- idempotent: clear prior load before re-loading ----
 cur.execute("TRUNCATE setting_wagon, setting_event RESTART IDENTITY CASCADE")
+cur.execute("DELETE FROM etl_reject WHERE module='setting'")
 
 # ---- seed dimensions ----
 ops=set(); sups=set(); prods=set(); chams=set()
@@ -103,26 +104,32 @@ for p in sorted(prods):
         cur.execute("SELECT product_id FROM product WHERE product_name_setting=%s",(p,)); prod_map[p]=cur.fetchone()[0]
 
 # ---- load events + wagons ----
+# NOTE: source file has 7 annual blocks (1398..1404); the first Excel column ("ردیف")
+# restarts at 1 in each block, so it is NOT a unique key. We assign our own
+# row_seq (1..N over the whole file) and use (date_jalali, shift, chamber, wagon_no)
+# as the natural dedup key.
 nev=0; nwag=0; nrej=0
-seen_srows=set()   # dedup: source file has duplicated rows; keep first occurrence only
+seen_keys=set()
+row_seq=0
 for r in rows:
-    # validate row shape
-    try:
-        srow = int(r[0]) if r[0] is not None else None
-    except (ValueError, TypeError):
-        nrej+=1; reject(None, 'ستون ردیف عددی نیست', str(r[:6])); continue
-    if srow in seen_srows:
-        continue   # duplicate source row -> skip (file has 7x repeated data)
-    seen_srows.add(srow)
+    row_seq+=1
     date_j = str(r[di]).strip() if r[di] else None
     if not date_j or not re.match(r'^\d{4}\.\d{1,2}\.\d{1,2}$', date_j):
-        nrej+=1; reject(srow, 'تاریخ نامعتبر در date_jalali', str(r[:6])); continue
+        nrej+=1; reject(row_seq, 'تاریخ نامعتبر در date_jalali', str(r[:6])); continue
     m=re.match(r'^(\d{4})\.(\d{1,2})\.(\d{1,2})$', date_j)
     date_j="%s.%02d.%02d"%(int(m.group(1)),int(m.group(2)),int(m.group(3)))
     try:
         shift = to_int(r[shi])
     except (ValueError, TypeError):
-        nrej+=1; reject(srow, 'شیفت عددی نیست', str(r[:6])); continue
+        nrej+=1; reject(row_seq, 'شیفت عددی نیست', str(r[:6])); continue
+    # natural key for dedup (a Setting load is unique per date+shift+chamber+wagon)
+    cham = to_int(r[chi])
+    w0 = to_int(r[WAGON_OFF])
+    nat_key = (date_j, shift, cham, w0)
+    if nat_key in seen_keys:
+        continue
+    seen_keys.add(nat_key)
+    srow = row_seq   # our own file-wide sequence (Excel "ردیف" restarts each annual block)
     sup = norm_name(r[supi]); op = norm_name(r[opi])
     sup_id = op_map.get(sup); op_id = op_map.get(op)
     cham = cham_map.get(r[chi]); prod = prod_map.get(norm_prod(r[pri]))
