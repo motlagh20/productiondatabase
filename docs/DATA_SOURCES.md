@@ -4,6 +4,14 @@
 > M0_SIGNOFF) say the source of truth is `xls/real data/`, but the actual ETL
 > (`scripts/historical_import/etl_*.py`) reads from `xls/consolidated/All/*.xlsx`.
 > This doc states the **current, real** source layout as of 2026-08-29.
+>
+> **Role of these Excel files (owner directive 2026-08-29):** the historical workbooks are
+> used **only** to (a) analyse requirements and (b) access the process history. They must
+> **NOT** exert a distorting influence on the main application design. All old data is
+> loadable into the new app, but because the sources carry a high volume of operator-typo
+> noise, they must never perturb the design flow. The clean/historical boundary is enforced
+> by [ADR-0008](adr/ADR-0008-clean-core-vs-historical-etl.md): the app core assumes clean
+> system-generated data; scrubbing lives in the separate ETL layer.
 
 ## 1. Authoritative final sources (ETL reads THESE)
 

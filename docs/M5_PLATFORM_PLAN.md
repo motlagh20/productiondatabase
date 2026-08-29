@@ -17,6 +17,11 @@ reference implementation; the architecture must stay multi-factory configurable 
   `operators`, `products`, `setting_wagons`, `dryer_readings`.
 - Staging is the historical-data source; Django migrations own the *application* schema. M5 leaves
   the staging load in place and defines the read/write boundary.
+- **Excel files are analysis/history artifacts only (owner 2026-08-29).** The 4 `xls/consolidated/All/*.xlsx`
+  workbooks are used to *derive requirements* and *access process history* — they must **never** shape
+  the app's core schema or business logic. All old data is loadable (via the ETL layer, ADR-0008), but
+  because the sources are typo-heavy, they are deliberately kept outside the design loop. The app core
+  assumes clean system-generated data; scrubbing/flagging stays in `scripts/historical_import/` only.
 
 ## 3. Functional requirements (initial)
 
