@@ -1,6 +1,6 @@
 # Project Overview — Manufacturing Analytics & Execution Platform
 
-> Status: **Historical data load complete & verified** (4 MES modules + wagon linking on PostgreSQL 16 staging; see IMPORT_RUNBOOK). M0–M4 documents approved (ADRs 0001–0006). **M5 (platform architecture) documented** — ADR-0007 Accepted, ADR-0008 Proposed (clean app core vs historical-ETL boundary). No platform code written yet (per ADR-0001). **Ready for M5 build after ADR-0008 approval.**
+> Status: **Historical data load complete & verified** (4 MES modules + wagon linking on PostgreSQL 16 staging; see IMPORT_RUNBOOK). M0–M4 documents approved (ADRs 0001–0006). **M5 (platform build) documentation in progress** — ADR-0007 + ADR-0008 Accepted; M5_PLATFORM_PLAN + M5_SRS + M5_API_CONTRACT drafted. No platform code written yet (per ADR-0001). Ready for M5 doc approval → Django/React build.
 
 ## What we did (read-only analysis + migration blueprints)
 
