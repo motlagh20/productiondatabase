@@ -1,0 +1,31 @@
+/* Persian / RTL base. Vazirmatn is the project's Persian UI face (frozen-app
+   design language, harvested per ADR-0004 — patterns only, no code merge).
+   Both @import rules must precede every other rule. */
+@import url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css');
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Vazirmatn', ui-sans-serif, system-ui, sans-serif;
+  --color-kiln: oklch(0.62 0.19 35);
+  --color-setting: oklch(0.58 0.14 250);
+  --color-packing: oklch(0.6 0.15 155);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: oklch(0.98 0.005 250);
+  color: oklch(0.25 0.02 250);
+}
+
+/* Numeric inputs keep LTR digits inside an RTL layout. */
+input[type='number'],
+input[type='time'] {
+  direction: ltr;
+  text-align: right;
+}
