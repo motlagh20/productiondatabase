@@ -44,7 +44,9 @@ Glazing (لعاب‌زنی)     — NOT YET IN SCOPE (future module)
    ↓
 Setting (ستینگ)       — dried body is loaded onto a wagon (plate name 1..80)
    ↓
-Waiting hall (سالن انتظار) — loaded wagons wait for a kiln push slot
+Waiting hall (سالن انتظار) — loaded wagons wait for a kiln push slot.
+                        Temperature logging in this hall is anticipated later (owner 2026-08-29);
+                        schema leaves room for a separate `waiting_hall_reading` table (see M5_PROPOSED_SCHEMA §2.5).
    ↓
 Kiln (کوره)           — FIFO tunnel, fixed capacity 44; wagon enters at push k, exits at k+43
    ↓
@@ -121,6 +123,7 @@ Tables owned by Django migrations (not the staging load):
 - `kiln_exit` (trip_id FK, entry_push_seq, exit_push_seq, discharged)
 - `packing_header` / `packing_wagon` (trip_id FK, grades, waste…)
 - `operator`, `chamber`, `product`, `glaze` (dimension masters)
+- `waiting_hall_reading` (reading_id, reading_time, temperature_c, sensor_id?, operator_id) — **placeholder, deferred**: ambient temp logging for the waiting hall, anticipated later (owner 2026-08-29). Mirrors `dryer_reading`/`kiln_reading` row-oriented pattern; NOT a column on `wagon_trip` (see M5_PROPOSED_SCHEMA §2.5).
 
 > Staging tables (`setting_event`, `kiln_wagon`, etc.) remain the **historical source**; an
 > ETL map (`etl_trip_map`) reconciles them to the clean core post-build (ADR-0008).

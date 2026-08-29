@@ -47,6 +47,25 @@
 - Empty in staging; **the M5 app assigns `trip_id` at Setting load start** (owner-approved 2026-08-29).
 - `setting_wagon` / `kiln_wagon` / `packing_wagon` each carry `trip_id` FK.
 
+### 2.5 Waiting hall (سالن انتظار) — temperature logging anticipated
+- **Current state:** the waiting hall is the interval between Setting load completion and Kiln push.
+  In `wagon_trip` it is represented as the `waiting_hall` state (entered_at / exited_at timestamps).
+- **Future requirement (owner 2026-08-29):** temperature logging in the waiting hall is expected
+  to be added later. The schema must leave room for it **without breaking the clean core**.
+- **Anticipated design (NOT built yet, placeholder only):**
+  - `waiting_hall_reading(reading_id PK, reading_time TIMESTAMPTZ, temperature_c NUMERIC,
+     sensor_id FK (optional), recorded_by_operator_id FK)` — mirrors the `dryer_reading` /
+     `kiln_reading` row-oriented pattern (one row per reading, not column-per-sensor).
+  - The waiting hall is a physical space (like a chamber), so it gets its own reading table,
+    not a column on `wagon_trip`.
+  - `wagon_trip.waiting_hall_entered_at` / `waiting_hall_exited_at` already capture *when* a
+    wagon was in the hall; the reading table captures *ambient conditions* during that window.
+- **Why deferred (not in M5 v1):** no source data exists for waiting-hall temps (the historical
+  Excel has no such column), so per ADR-0008 it is out of scope for the initial build. The
+  placeholder above is documented so the model is not designed in a way that would block it.
+- **Rule:** do NOT encode waiting-hall temp as a column on `wagon_trip` (a wagon passes through
+  many reading intervals); use the separate reading table when the feature is built.
+
 ## 3. Clean-core modeling rules (what the app assumes)
 
 - Wagon identity = FK to `wagon(wagon_id)`; **no "wagon name > 80" validator** (ADR-0008).
@@ -61,7 +80,7 @@
 |--------|--------|------|
 | Forming (فرم دهی) | deferred | owner: "فعلا نداریم" |
 | Glazing (لعاب زنی) | deferred | owner: "فعلا نداریم"; glaze *dimension* exists, but no glazing *process* table yet |
-| Waiting hall (سالن انتظار) | modeled as state | not a table — it is the `waiting_hall` state in `wagon_trip` between Setting and Kiln push |
+| Waiting hall (سالن انتظار) | deferred table (placeholder) | not yet modeled; see §2.5 — temperature logging anticipated (owner 2026-08-29) |
 
 ## 5. Staging → App boundary
 
