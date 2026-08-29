@@ -1,6 +1,6 @@
 # ADR-0008 — Clean App Core vs. Historical ETL Boundary
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-08-29
 - **Deciders:** Project owner
 - **Related:** ADR-0001 (doc-first), ADR-0007 (M5 app architecture), ADR-0002 (freeze legacy)
