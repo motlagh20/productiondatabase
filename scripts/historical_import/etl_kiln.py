@@ -104,7 +104,7 @@ pushes = {}            # key -> dict(push tuple, wagons list, readings list)
 order = 0
 for r in ws.iter_rows(min_row=2, values_only=True):
     order += 1
-    src = to_int(r[0])            # source_row (Excel row number, unique)
+    src = order                   # file-wide row sequence (Excel col 0 'ردیف' is NOT a source key)
     date_j = norm_date(r[di])
     if date_j is None:  # malformed source date -> skip this row (kept traceable via source_row elsewhere)
         continue

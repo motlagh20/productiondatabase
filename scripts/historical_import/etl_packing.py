@@ -47,7 +47,9 @@ for r in ws.iter_rows(min_row=2, values_only=True):
 
 # ---- group in memory ----
 headers = {}
+row_seq = 0
 for r in raw:
+    row_seq += 1
     d = norm_date_slash(r[di])
     if d is None: continue
     sh = to_int(r[shi])
@@ -56,7 +58,7 @@ for r in raw:
     if key not in headers:
         headers[key] = dict(date=d, shift=sh, ctrl_name=ctrl, wt=str(r[wti]).strip() if r[wti] else None,
                             wc=to_int(r[wci]), month=str(r[mi]).strip() if r[mi] else None,
-                            day=str(r[dai]).strip() if r[dai] else None, src=to_int(r[0]), wagons=[])
+                            day=str(r[dai]).strip() if r[dai] else None, src=row_seq, wagons=[])
     h = headers[key]
     h['wagons'].append((to_int(r[wni]), str(r[pci]).strip() if r[pci] else None,
                         str(r[pdi]).strip() if r[pdi] else None, to_int(r[tci]),
@@ -97,6 +99,8 @@ for h in headers.values():
     h['wagons'] = new_w
 
 header_data = list(headers.values())
+# ---- idempotent: clear prior load before re-loading ----
+cur.execute("TRUNCATE packing_wagon, packing_header RESTART IDENTITY CASCADE")
 # insert headers one-by-one so returned IDs are guaranteed in input order
 # (execute_values + RETURNING + page_size is NOT order-safe across batches)
 ids = []

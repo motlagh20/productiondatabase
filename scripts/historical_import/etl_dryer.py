@@ -78,11 +78,19 @@ def reject(srow, reason, raw):
     cur.execute("INSERT INTO etl_reject(module,source_row,reason,raw_text) VALUES('dryer',%s,%s,%s)",
                 (srow, reason, raw[:500] if raw else None))
 
+# ---- idempotent: clear prior load before re-loading ----
+cur.execute("TRUNCATE dryer_reading, dryer_cycle RESTART IDENTITY CASCADE")
+cur.execute("DELETE FROM etl_reject WHERE module='dryer'")
+
 # ---- load cycles ----
 nc=0; nrej=0
 rows=list(de.iter_rows(min_row=2, values_only=True))
+row_seq=0
 for r in rows:
-    srow = to_int(r[0]) if r[0] is not None else None
+    row_seq+=1
+    # NOTE: Excel column 0 ('ردیف') is NOT a source-of-truth key (restarts each block);
+    # we assign our own file-wide row_seq instead.
+    srow = row_seq
     ld = norm_date(r[ldi]); ud = norm_date(r[udi])
     if ld is None and ud is None:
         nrej+=1; reject(srow, 'هیچ تاریخی معتبر نیست', str(r[:6])); continue
