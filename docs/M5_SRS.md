@@ -82,7 +82,7 @@ Packing (پکینگ/بسته‌بندی) — wagon discharged from kiln is unpac
 | F6 | Dashboard: kiln tunnel occupancy (≤44), awaiting-discharge + waiting-hall counts | Manager | All | Real-time |
 | F7 | Dashboard: wagon journey trace (dryer → setting → waiting → kiln entry → kiln exit → packing) by plate name or trip_id | Manager | `wagon_trip` links | |
 | F8 | Dashboard: daily production counts + sensor trend charts | Manager | All | Date-range filter (Jalali) |
-| F9 | Dimension management: operators, chambers, products, glazes (CRUD) | Admin | All | Authoritative names per ADR-0006 |
+| F9 | Dimension management: operators, chambers, products, glazes (CRUD) | Admin | All | Authoritative names per ADR-0006; glaze master = `glaze` (code/name/formula/desc) |
 | F10 | Correction workflow: flag an entry as suspect (typo/date error), keep original, log to review table | Supervisor | All | Never overwrites raw value |
 
 ### 3.1 Trip lifecycle (state machine)

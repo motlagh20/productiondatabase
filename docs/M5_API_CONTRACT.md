@@ -111,6 +111,9 @@ Response `201`: `{ "packing_header_id": 332, "trip_status": "completed" }`
 - `GET/POST/PUT/DELETE /api/dimensions/chambers/`
 - `GET/POST/PUT/DELETE /api/dimensions/products/`
 - `GET/POST/PUT/DELETE /api/dimensions/glazes/`
+  ```json
+  { "glaze_code": "AKHRA", "glaze_name": "اخرا", "formula": "…", "description": "لعاب اخرا", "is_combined": false }
+  ```
 
 ## 7. Correction workflow (F10)
 

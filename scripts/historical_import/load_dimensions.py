@@ -114,7 +114,10 @@ print(f"Glazes: {len(glaze_vals)}")
 
 # ---- insert ----
 conn=psycopg2.connect(**CONN); cur=conn.cursor()
-cur.execute("TRUNCATE operators, products, glazes RESTART IDENTITY CASCADE;")
+cur.execute("TRUNCATE operators, products RESTART IDENTITY CASCADE;")
+# NOTE: glaze master is now the clean `glaze` table (sql/schema/36_glaze.sql) with
+# glaze_code/glaze_name/formula/description — seeded directly, not from raw vocab.
+# Historical glaze vocab is logged for review only (no insert into the master).
 for n in op_names:
     cur.execute("INSERT INTO operators(code,full_name,role,source) VALUES(%s,%s,'operator','historical')", ("?", n))
 for c in op_codes:
@@ -130,16 +133,9 @@ for (t,d),cnt in prods.items():
         if g in d: gl=glaze_map.get(g,g); break
     canon=f"P-{m}-{gl}" if gl else f"P-{m}"
     cur.execute("INSERT INTO products(canonical_code,mold_type,glaze,description,source) VALUES(%s,%s,%s,%s,'historical') ON CONFLICT (canonical_code) DO NOTHING", (canon,t,gl,d))
-# glazes
-for g,cnt in glaze_vals.items():
-    norm=None
-    for k,v in glaze_map.items():
-        if k in g: norm=v; break
-    is_combined = "مولتی" in g
-    cur.execute("INSERT INTO glazes(glaze_value,normalized,is_combined,note) VALUES(%s,%s,%s,'from workbook')", (g,norm,is_combined))
+# glazes: review only (legacy vocab) — master is `glaze` (36_glaze.sql), seeded manually
+print("Legacy glaze vocab (review only, not inserted into master):")
+for g,cnt in sorted(glaze_vals.items(), key=lambda x:-x[1]):
+    print(f"  {g!r}: {cnt}")
 conn.commit()
-print("INSERTED operators/products/glazes.")
-cur.execute("SELECT count(*) FROM operators"); print("operators:",cur.fetchone()[0])
-cur.execute("SELECT count(*) FROM products"); print("products:",cur.fetchone()[0])
-cur.execute("SELECT count(*) FROM glazes"); print("glazes:",cur.fetchone()[0])
 cur.close(); conn.close()
