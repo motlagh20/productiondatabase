@@ -73,7 +73,7 @@ The last isolates the **27 flag-only** rows (wagon/chamber) needing ledger revie
 
 PostgreSQL 16 (`productiondb-data`, localhost:5433) now holds the 4 MES modules as a
 **working staging load** (not the final app DB — see README). Built from the owner-declared
-final sources `xls/consolidated/All/*.xlsx` via `sql/schema/30–33_*.sql` + `scripts/historical_import/etl_*.py`.
+final sources `xls/consolidated/All/*.xlsx` (see [DATA_SOURCES.md](DATA_SOURCES.md) for what is/isn't a source) via `sql/schema/30–36_*.sql` + `scripts/historical_import/etl_*.py`.
 
 | Module | Tables | Loaded rows | Rejects | ETL verified |
 |---|---|---|---|---|

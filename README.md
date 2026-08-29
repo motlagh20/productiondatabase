@@ -8,7 +8,7 @@ This project has been **redefined** per the [Master Project Rules](docs/00_MASTE
 > (localhost:5433, db `postgres`). It loads the 4 MES modules from the consolidated Excel
 > sources so analysts can validate before the Django/React build. Final app DB is a later milestone.
 
-**Source of truth:** `xls/consolidated/All/*.xlsx` (the owner-declared final reference workbooks).
+**Source of truth:** `xls/consolidated/All/*.xlsx` (the owner-declared final reference workbooks). See [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md) for the exact 4 files and what to ignore.
 **DDL:** `sql/schema/30_setting.sql` · `31_dryer.sql` · `32_kiln.sql` · `33_packing.sql` · `34_wagon_linking.sql` (wagon master, FIFO-44 kiln_exit) · `35_wagon_trip.sql` (trip spine) · `36_glaze.sql` (glaze dimension master) + `36b_glaze_link.sql`
 **ETL (batched, idempotent):** `scripts/historical_import/etl_setting.py` · `etl_dryer.py` · `etl_kiln.py` · `etl_packing.py` · `etl_link.py` (wagon linking)
 

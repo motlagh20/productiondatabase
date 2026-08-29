@@ -1,6 +1,8 @@
 # Historical Data Import — Runbook
 
 > How to (re)load the 4 MES modules into PostgreSQL 16 staging from `xls/consolidated/All/*.xlsx`.
+> **Authoritative sources:** see [DATA_SOURCES.md](DATA_SOURCES.md) — only the 4 `-All`/`Merged` files are inputs;
+> `xls/real data/` and per-year splits are legacy/ignored.
 > **Principle:** read-only on sources; no fabricated values; batched + idempotent.
 > This runbook reflects the **current staging build** (2026-08-26), which diverged from the
 > pre-build ERD — table names below are the staging tables, not the ERD's.
