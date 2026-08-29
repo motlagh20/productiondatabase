@@ -9,7 +9,7 @@ This project has been **redefined** per the [Master Project Rules](docs/00_MASTE
 > sources so analysts can validate before the Django/React build. Final app DB is a later milestone.
 
 **Source of truth:** `xls/consolidated/All/*.xlsx` (the owner-declared final reference workbooks). See [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md) for the exact 4 files and what to ignore. **These Excel files are for requirements analysis + history access only** — they must not distort the app's core design (boundary enforced by [ADR-0008](adr/ADR-0008-clean-core-vs-historical-etl.md)); all old data is loadable via the separate ETL layer.
-**DDL:** `sql/schema/30_setting.sql` · `31_dryer.sql` · `32_kiln.sql` · `33_packing.sql` · `34_wagon_linking.sql` (wagon master, FIFO-44 kiln_exit) · `35_wagon_trip.sql` (trip spine) · `36_glaze.sql` (glaze dimension master) + `36b_glaze_link.sql`
+**DDL:** `sql/schema/30_setting.sql` · `31_dryer.sql` · `32_kiln.sql` · `33_packing.sql` · `34_wagon_linking.sql` (wagon master, FIFO-44 kiln_exit) · `35_wagon_trip.sql` (trip spine) · `36_glaze.sql` (glaze dimension master) + `36b_glaze_link.sql` · `37_etl_trip_map.sql` (ETL reconciliation map, empty)
 **ETL (batched, idempotent):** `scripts/historical_import/etl_setting.py` · `etl_dryer.py` · `etl_kiln.py` · `etl_packing.py` · `etl_link.py` (wagon linking)
 
 | Module | Tables | Loaded rows | Rejects |
@@ -26,6 +26,8 @@ This project has been **redefined** per the [Master Project Rules](docs/00_MASTE
 table names — e.g. `kiln_pushes`+`kiln_temperature_readings` (wide) became `kiln_push`+`kiln_wagon`+`kiln_reading`+`kiln_sensor` (row-oriented, 18 sensors). The staging tables are the working load; the ERD remains the target for the final app schema. Legacy frozen-app tables (`kiln_pushes`, `kiln_temperature_readings`, `kiln_temp_correction`, `wagon_master`, `packing_records`, `v_clean_kiln_temps`) were **dropped 2026-08-27** after a verified staging load; a `pg_dump` backup is kept at `.db_backup_kiln/`.
 
 **Current phase:** Historical data load **complete & verified** (4 modules + wagon linking, see [OVERVIEW.md](docs/OVERVIEW.md) + [IMPORT_RUNBOOK.md](docs/IMPORT_RUNBOOK.md)). Master Product & Architecture Specification v0.1 + ADRs 0001–0008 approved for the documentation-first path. **M5 (platform build) documentation in progress** — [ADR-0007](adr/ADR-0007-application-architecture-m5.md) + [ADR-0008](adr/ADR-0008-clean-core-vs-historical-etl.md) Accepted; [M5_PLATFORM_PLAN.md](docs/M5_PLATFORM_PLAN.md) + [M5_SRS.md](docs/M5_SRS.md) + [M5_API_CONTRACT.md](docs/M5_API_CONTRACT.md) + [M5_PROPOSED_SCHEMA.md](docs/M5_PROPOSED_SCHEMA.md) (100% schema map) drafted. No application code written yet (ADR-0001 compliant). Ready for M5 doc approval → Django/React build.
+
+> **Canonical vs deprecated tables:** Django models MUST reference only the canonical tables listed in [M5_PLATFORM_PLAN.md §2](docs/M5_PLATFORM_PLAN.md). Legacy duplicates `operators`, `products`, `setting_wagons`, `dryer_readings` are still present in staging for audit only — do NOT model them. Verification is via `scripts/verify/hermes-verify-staging.py` (row counts + FK + FIFO-44), not a committed CI suite yet.
 
 ## Status of the existing app in this repository
 

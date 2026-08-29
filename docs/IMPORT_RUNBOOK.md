@@ -29,6 +29,7 @@ psql -h localhost -p 5433 -U postgres -d postgres -f sql/schema/34_wagon_linking
 psql -h localhost -p 5433 -U postgres -d postgres -f sql/schema/35_wagon_trip.sql
 psql -h localhost -p 5433 -U postgres -d postgres -f sql/schema/36_glaze.sql
 psql -h localhost -p 5433 -U postgres -d postgres -f sql/schema/36b_glaze_link.sql
+psql -h localhost -p 5433 -U postgres -d postgres -f sql/schema/37_etl_trip_map.sql
 
 ## 2. Load dimensions (operators / chambers / products)
 ```bash

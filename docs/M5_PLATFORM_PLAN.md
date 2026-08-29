@@ -12,9 +12,15 @@ reference implementation; the architecture must stay multi-factory configurable 
 ## 2. Staging DB as integration source
 
 - Dev/integration DB = PostgreSQL 16 at `localhost:5433`, db `postgres` (the existing staging load).
-- 31 tables present (see README status). Authoritative dimension names per ADR-0006:
-  `operator`, `product`, `chamber`, `glazes`. **Deprecated duplicates** (not modeled):
-  `operators`, `products`, `setting_wagons`, `dryer_readings`.
+- Authoritative **canonical** tables (Django models MUST reference ONLY these):
+  `operator`, `product`, `chamber`, `glaze`, `wagon`, `wagon_trip`,
+  `setting_event`, `setting_wagon`, `dryer_cycle`, `dryer_reading`,
+  `kiln_push`, `kiln_wagon`, `kiln_reading`, `kiln_sensor`, `kiln_exit`,
+  `packing_header`, `packing_wagon`, `etl_reject`, `etl_trip_map`.
+- **Deprecated legacy duplicates** (still present in staging, NOT modeled by Django — kept for audit only):
+  `operators` (19 rows → use `operator`), `products` (9 → use `product`),
+  `setting_wagons` (45,911 → use `setting_wagon`), `dryer_readings` (36,737 → use `dryer_reading`),
+  `glazes` (dropped 2026-08-29 → use `glaze`). Do NOT reference these in app code.
 - Staging is the historical-data source; Django migrations own the *application* schema. M5 leaves
   the staging load in place and defines the read/write boundary.
 - **Excel files are analysis/history artifacts only (owner 2026-08-29).** The 4 `xls/consolidated/All/*.xlsx`

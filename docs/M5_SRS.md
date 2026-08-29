@@ -124,6 +124,7 @@ Tables owned by Django migrations (not the staging load):
 - `packing_header` / `packing_wagon` (trip_id FK, grades, waste…)
 - `operator`, `chamber`, `product`, `glaze` (dimension masters)
 - `waiting_hall_reading` (reading_id, reading_time, temperature_c, sensor_id?, operator_id) — **placeholder, deferred**: ambient temp logging for the waiting hall, anticipated later (owner 2026-08-29). Mirrors `dryer_reading`/`kiln_reading` row-oriented pattern; NOT a column on `wagon_trip` (see M5_PROPOSED_SCHEMA §2.5).
+- `etl_trip_map` (map_id, source_module, source_row, trip_id?, wagon_id?, matched_at, note) — **ETL/historical layer only** (ADR-0008), created empty by `37_etl_trip_map.sql`; reconciles historical Excel rows (by `row_seq`) to clean-core `trip_id` post-build. NOT an app model.
 
 > Staging tables (`setting_event`, `kiln_wagon`, etc.) remain the **historical source**; an
 > ETL map (`etl_trip_map`) reconciles them to the clean core post-build (ADR-0008).
