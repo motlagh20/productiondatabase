@@ -6,10 +6,25 @@
 Base URL: `/api/`. Auth: **DRF Token** (`Authorization: Token <key>`).
 All dates: Jalali `YYYY.MM.DD` in/out; all times `HH:MM`. Persian/RTL UI consumes these.
 
-## 1. Setting (F1)
+## 1. Dryer (F1 — first production step)
+
+### POST /api/dryer/cycles/
+Log a drying cycle (clay body dried in chamber 1..40).
+```json
+{
+  "chamber_id": 5,
+  "load_date": "1403.03.01", "load_time": "08:00",
+  "unload_date": "1403.03.01", "unload_time": "16:00",
+  "operator_id": 3, "product_id": 7, "finger_count": 4,
+  "readings": [ {"hour_offset":0,"humidity_pct":62,"temperature_c":38}, … ]  // up to 22
+}
+```
+Response `201`: `{ "dryer_cycle_id": 881 }`
+
+## 2. Setting (F2 — after dryer)
 
 ### POST /api/setting/loads/
-Create a wagon load → opens a `wagon_trip` (trip_id assigned at start).
+Load a dried body onto a wagon → opens a `wagon_trip` (trip_id assigned at start).
 ```json
 {
   "plate_name": "12",
@@ -29,22 +44,6 @@ Response `201`: `{ "trip_id": 1042, "setting_load_id": 5531, "status": "in_progr
 
 ### GET /api/setting/loads/?from=&to=&plate=
 List loads (manager/supervisor). Filters by Jalali date range or plate name.
-
-## 2. Dryer (F2)
-
-### POST /api/dryer/cycles/
-Log a drying cycle for an open trip.
-```json
-{
-  "trip_id": 1042,
-  "chamber_id": 5,
-  "load_date": "1403.03.01", "load_time": "17:00",
-  "unload_date": "1403.03.02", "unload_time": "09:00",
-  "operator_id": 3, "product_id": 7, "finger_count": 4,
-  "readings": [ {"hour_offset":0,"humidity_pct":62,"temperature_c":38}, … ]  // up to 22
-}
-```
-Response `201`: `{ "dryer_cycle_id": 881 }`
 
 ## 3. Kiln (F3, F4)
 
@@ -93,8 +92,9 @@ Response `201`: `{ "packing_header_id": 332, "trip_status": "completed" }`
 ```json
 [{
   "trip_id": 1042, "plate": "12", "status": "completed",
-  "setting":  {"date":"1403.03.01","chamber_ref":5,"packages":64},
-  "dryer":    {"cycle_id":881,"load":"1403.03.01 17:00","unload":"1403.03.02 09:00"},
+  "dryer":    {"cycle_id":881,"load":"1403.03.01 08:00","unload":"1403.03.01 16:00"},
+  "setting":  {"setting_load_id":5531,"date":"1403.03.01","chamber_ref":5,"packages":64},
+  "waiting_hall": {"entered":"1403.03.01 16:45"},
   "kiln":     {"push_seq":881,"entry":"1403.03.03 08:20","exit_push_seq":924},
   "packing":  {"header_id":332,"date":"1403.03.10","grade1":58,"waste":2}
 }]

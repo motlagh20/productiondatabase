@@ -20,15 +20,18 @@ reference implementation; the architecture must stay multi-factory configurable 
 
 ## 3. Functional requirements (initial)
 
+Production flow order (owner-specified): **Dryer → Setting → Waiting hall → Kiln → Packing**
+(Forming & Glazing not yet in scope).
+
 | ID | Capability | Actor | Source module |
 |----|-----------|-------|---------------|
-| F1 | Register a wagon load (plate, product, operator, shift) | Operator | Setting |
-| F2 | Log dryer cycle + 22 hourly readings | Operator | Dryer |
-| F3 | Register a kiln push (1 wagon, 18 sensors) | Operator | Kiln |
+| F1 | Log dryer cycle + 22 hourly readings (clay body dried, chamber 1..40) | Operator | Dryer |
+| F2 | Register a wagon load (plate, product, operator, shift) — loads dried body from dryer | Operator | Setting |
+| F3 | Register a kiln push (1 wagon, 18 sensors) — wagon from waiting hall | Operator | Kiln |
 | F4 | Mark wagon discharge → awaiting-discharge list | Operator | Kiln exit |
 | F5 | Register packing (take 1+ wagons from awaiting-discharge) | Operator | Packing |
-| F6 | Dashboard: kiln tunnel occupancy (≤44) | Manager | all |
-| F7 | Dashboard: wagon journey trace (setting→…→packing) | Manager | `wagon` links |
+| F6 | Dashboard: kiln tunnel occupancy (≤44) + waiting-hall + awaiting-discharge | Manager | all |
+| F7 | Dashboard: wagon journey trace (dryer → setting → waiting → kiln → packing) | Manager | `wagon` links |
 | F8 | Dashboard: daily counts + sensor trends | Manager | all |
 
 ## 4. API contract (v1, draft)

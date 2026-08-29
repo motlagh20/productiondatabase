@@ -33,6 +33,27 @@ the schema stays multi-factory configurable (MASTER_SPEC §P3).
   staging tables are the historical source (ADR-0008: clean core vs ETL boundary).
 - Persian (Farsi) UI, RTL, Jalali dates (`jdatetime`).
 
+### 2.2 Production flow order (physical sequence on the floor)
+The wagon journey follows this **strict physical order** (owner-specified 2026-08-29):
+```
+Forming (فرم‌دهی)      — NOT YET IN SCOPE (future module)
+   ↓
+Dryer (خشک‌کن)         — clay bodies are dried; chamber 1..40
+   ↓
+Glazing (لعاب‌زنی)     — NOT YET IN SCOPE (future module)
+   ↓
+Setting (ستینگ)       — dried body is loaded onto a wagon (plate name 1..80)
+   ↓
+Waiting hall (سالن انتظار) — loaded wagons wait for a kiln push slot
+   ↓
+Kiln (کوره)           — FIFO tunnel, fixed capacity 44; wagon enters at push k, exits at k+43
+   ↓
+Packing (پکینگ/بسته‌بندی) — wagon discharged from kiln is unpacked & graded
+```
+> **Key correction:** Setting does NOT precede Dryer. The dryer produces the dried body that
+> Setting then loads onto a wagon. The Setting `chamber_no` column is a *reference* to the
+> source dryer chamber (1..40), not a Setting-owned chamber. (ADR-0008 / owner rule 2026-08-29.)
+
 ### 2.2 User classes
 | Class | Privileges |
 |---|---|
@@ -53,24 +74,25 @@ the schema stays multi-factory configurable (MASTER_SPEC §P3).
 
 | ID | Requirement | Actor | Module | Notes |
 |----|-------------|-------|--------|-------|
-| F1 | Register a wagon load: plate name, product, glaze, operator, shift, chamber (source ref), start/end time, packages, khesht count | Operator | Setting | Creates a `wagon_trip` at load **start** (trip_id assigned immediately) |
-| F2 | Log a dryer cycle: chamber, load/unload datetime, operator, product, finger count, 22 hourly humidity/temp readings | Operator | Dryer | Cycle references the trip's wagons |
-| F3 | Register a kiln push: 1 wagon, 18 sensor readings, operator, push time, duration | Operator | Kiln | Push = 1 unique event; push_seq assigned by physical order |
+| F1 | Log a dryer cycle: chamber (1..40), load/unload datetime, operator, product, finger count, 22 hourly humidity/temp readings | Operator | Dryer | **First** production step; produces the dried body |
+| F2 | Register a wagon load: plate name, product, glaze, operator, shift, chamber (source ref to dryer), start/end time, packages, khesht count | Operator | Setting | **After** Dryer; loads dried body onto wagon; creates `wagon_trip` at load **start** |
+| F3 | Register a kiln push: 1 wagon, 18 sensor readings, operator, push time, duration | Operator | Kiln | Wagon enters from waiting hall; push = 1 unique event; push_seq by physical order |
 | F4 | Mark wagon discharge: wagon exits kiln → added to awaiting-discharge list (`kiln_exit`) | Operator | Kiln exit | FIFO: exit_push_seq = entry_push_seq + 43 |
 | F5 | Register packing: take 1+ wagons from awaiting-discharge, record grade/waste counts | Operator | Packing | Closes the `wagon_trip` |
-| F6 | Dashboard: kiln tunnel occupancy (≤44), awaiting-discharge count | Manager | All | Real-time |
-| F7 | Dashboard: wagon journey trace (setting → dryer → kiln entry → kiln exit → packing) by plate name or trip_id | Manager | `wagon_trip` links | |
+| F6 | Dashboard: kiln tunnel occupancy (≤44), awaiting-discharge + waiting-hall counts | Manager | All | Real-time |
+| F7 | Dashboard: wagon journey trace (dryer → setting → waiting → kiln entry → kiln exit → packing) by plate name or trip_id | Manager | `wagon_trip` links | |
 | F8 | Dashboard: daily production counts + sensor trend charts | Manager | All | Date-range filter (Jalali) |
 | F9 | Dimension management: operators, chambers, products, glazes (CRUD) | Admin | All | Authoritative names per ADR-0006 |
 | F10 | Correction workflow: flag an entry as suspect (typo/date error), keep original, log to review table | Supervisor | All | Never overwrites raw value |
 
 ### 3.1 Trip lifecycle (state machine)
 ```
-[created @ Setting load start] → in_progress
-   → dryer_cycle linked
-   → kiln_push linked
-   → kiln_exit (discharged) → awaiting_discharge
-   → packing_header linked → completed
+[DRYER cycle logged] → body_dried
+   → [SETTING load starts] → in_progress   (trip_id assigned at Setting load start)
+   → waiting_hall (loaded wagon awaiting kiln slot)
+   → [KILN push] → in_tunnel
+   → [KILN exit] → awaiting_discharge
+   → [PACKING] → completed
    (or) abandoned / incomplete (if load never finished)
 ```
 
