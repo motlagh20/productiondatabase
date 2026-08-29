@@ -109,6 +109,9 @@ Packing (پکینگ/بسته‌بندی) — wagon discharged from kiln is unpac
 
 ## 5. Data model (application core — clean)
 
+> **Full 100% schema map** (conceptual names → staging tables + the ETL-heavy 30%):
+> see [M5_PROPOSED_SCHEMA.md](M5_PROPOSED_SCHEMA.md). This section is the clean-core summary.
+
 Tables owned by Django migrations (not the staging load):
 - `wagon` (wagon_id, plate_name UNIQUE)
 - `wagon_trip` (trip_id, wagon_id, started_at, completed_at, status) — spine
