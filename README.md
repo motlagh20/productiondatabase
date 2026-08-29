@@ -9,7 +9,7 @@ This project has been **redefined** per the [Master Project Rules](docs/00_MASTE
 > sources so analysts can validate before the Django/React build. Final app DB is a later milestone.
 
 **Source of truth:** `xls/consolidated/All/*.xlsx` (the owner-declared final reference workbooks).
-**DDL:** `sql/schema/30_setting.sql` · `31_dryer.sql` · `32_kiln.sql` · `33_packing.sql`
+**DDL:** `sql/schema/30_setting.sql` · `31_dryer.sql` · `32_kiln.sql` · `33_packing.sql` · `34_wagon_linking.sql` (wagon master, FIFO-44 kiln_exit) · `35_wagon_trip.sql` (trip spine)
 **ETL (batched, idempotent):** `scripts/historical_import/etl_setting.py` · `etl_dryer.py` · `etl_kiln.py` · `etl_packing.py` · `etl_link.py` (wagon linking)
 
 | Module | Tables | Loaded rows | Rejects |
