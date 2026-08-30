@@ -28,8 +28,8 @@ export function Select({
   return (
     <select className={inputClass} value={value} onChange={(e) => onChange(e.target.value)}>
       <option value="">{placeholder}</option>
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>
+      {options.map((o, idx) => (
+        <option key={idx} value={o.value}>
           {o.label}
         </option>
       ))}
