@@ -215,3 +215,32 @@ class DryerReading(models.Model):
 
     class Meta:
         unique_together = (('dryer_cycle', 'hour_offset'),)
+
+
+class EtlReject(models.Model):
+    """Quarantine for historical rows that cannot enter the clean app core (ADR-0008).
+
+    The historical staging data contains operator typos (wagon_no > 80, NULL plates,
+    out-of-range batches). Per the owner rule, these are NEVER silently corrected or
+    admitted into the app — they are logged here with the reason + raw source row so a
+    human can adjudicate them against the paper ledgers. The app's clean core stays
+    unpolluted; this table is the *only* place dirty history lands.
+    """
+    MODULE_CHOICES = [
+        ('setting', 'setting'),
+        ('kiln', 'kiln'),
+        ('packing', 'packing'),
+        ('dryer', 'dryer'),
+    ]
+    etl_reject_id = models.BigAutoField(primary_key=True)
+    module = models.CharField(max_length=20, choices=MODULE_CHOICES)
+    source_row = models.IntegerField(null=True, blank=True)
+    reason = models.TextField()
+    raw = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('etl_reject_id',)
+
+    def __str__(self):
+        return f'reject#{self.etl_reject_id} ({self.module}): {self.reason[:60]}'

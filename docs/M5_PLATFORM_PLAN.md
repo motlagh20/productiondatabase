@@ -118,7 +118,18 @@ PR [#1](https://github.com/motlagh20/productiondatabase/pull/1) (`m5-slice-build
 - **Dimension seeding:** `seed_dimensions` management command reads staging once via raw SQL;
   idempotent `update_or_create`. Wagon filter enforces clean-core 1..80 range at the seed
   boundary.
-- **Tests:** 10 acceptance tests covering FIFO-44 ceiling + slot freeing, exit=entry+43,
+- **Historical replay (ETL layer, ADR-0008):** `replay_historical` management command reads
+  staging (`setting_event`+`setting_wagon` → `kiln_push`+`kiln_wagon` → `packing_header`+`packing_wagon`)
+  and re-creates the full trip spine in the app via the **real domain services**
+  (`create_setting_batch` / `push_wagon` / `register_packing`) — so FIFO-44, the 44-capacity
+  ceiling, and the journey state machine are exercised at real volume (~20k setting events,
+  ~38k pushes, ~93k packing wagons). Dirty history is **not** admitted: any row whose
+  `wagon_no` is NULL or outside 1..80, or whose chamber/operator FK is missing, is written to
+  the app's `EtlReject` table (module, source_row, reason, raw) for human adjudication against
+  the paper ledgers. Replay is idempotent via deterministic UUID `client_token`s derived from
+  staging source keys. This is the missing "hard 30%": the app is now load-tested against real
+  historical shape, not just synthetic single-trip tests.
+- **Tests:** 12 acceptance tests covering FIFO-44 ceiling + slot freeing, exit=entry+43,
   one-trip-across-days spine, replay idempotency, out-of-range plate rejection, plate dropdown
   range, packing state guard, unauthenticated rejection, service-layer rule violation.
 - **Frontend (`frontend/`):** React 19 + TypeScript + Vite + Tailwind v4. Persian RTL layout

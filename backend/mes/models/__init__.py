@@ -9,6 +9,7 @@ from .dimensions import (
 from .spine import (
     DryerCycle,
     DryerReading,
+    EtlReject,
     KilnExit,
     KilnPush,
     KilnReading,
@@ -23,4 +24,5 @@ __all__ = [
     'Chamber', 'Glaze', 'KilnSensor', 'Operator', 'Product', 'Wagon',
     'WagonTrip', 'DryerCycle', 'DryerReading', 'SettingEvent', 'SettingWagon',
     'KilnPush', 'KilnReading', 'KilnExit', 'PackingHeader', 'PackingWagon',
+    'EtlReject',
 ]
