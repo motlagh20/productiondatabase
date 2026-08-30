@@ -56,16 +56,23 @@ class Command(BaseCommand):
                  'packing': 0, 'packing_reject': 0}
 
         # ---- 1) SETTING: event + wagons + trip ----
+        # Pre-load ALL setting_wagon rows once (avoids a SQL round-trip per event).
+        sw_all = _rows(
+            'SELECT setting_event_id, setting_wagon_id, wagon_no, glaze_id, start_time, '
+            'end_time, packages, khesht_count, position_in_event FROM setting_wagon'
+        )
+        sw_by_event = {}
+        for r in sw_all:
+            sw_by_event.setdefault(int(r['setting_event_id']), []).append(r)
+
         events = _rows(
             'SELECT setting_event_id, date_jalali, shift, chamber_id, product_id, '
             'supervisor_id, operator_id FROM setting_event ORDER BY setting_event_id'
         )
         for ev in events:
-            sw_rows = _rows(
-                'SELECT setting_wagon_id, wagon_no, glaze_id, start_time, end_time, '
-                'packages, khesht_count, position_in_event FROM setting_wagon '
-                'WHERE setting_event_id = %s ORDER BY position_in_event'
-                % ev['setting_event_id']
+            sw_rows = sorted(
+                sw_by_event.get(int(ev['setting_event_id']), []),
+                key=lambda r: (r['position_in_event'] or 0),
             )
             # Validate + resolve wagons first; if any wagon is dirty, reject the event.
             clean = []
@@ -123,109 +130,131 @@ class Command(BaseCommand):
                     reason=f"service error: {e}", raw=str(ev))
                 stats['setting_reject'] += 1
 
-        # ---- 2) KILN: push wagons in FIFO order (push_seq) ----
+        # ---- 2) KILN: interleave pushes and exits by sequence ----
+        # Pushes and exits MUST be interleaved, NOT run as two separate passes: running
+        # every push before any exit fills the 44-wagon tunnel and jams (the "tunnel
+        # full" rejects). Discharging a wagon frees its slot before the next push needs
+        # it. We walk a single timeline ordered by push_seq / exit_push_seq.
+        from mes.models import KilnExit
+
+        # Pre-load ALL kiln_wagon rows once (avoids a SQL round-trip per push).
+        kw_all = _rows('SELECT kiln_push_id, wagon_no FROM kiln_wagon')
+        kw_by_push = {}
+        for r in kw_all:
+            kw_by_push.setdefault(int(r['kiln_push_id']), []).append(r)
+
         pushes = _rows(
             'SELECT kiln_push_id, push_seq, push_date, push_time, shift, '
             'operator_id, product_id FROM kiln_push ORDER BY push_seq'
         )
-        for kp in pushes:
-            kw_rows = _rows(
-                'SELECT wagon_no FROM kiln_wagon WHERE kiln_push_id = %s' % kp['kiln_push_id']
-            )
-            pushed_any = False
-            for kw in kw_rows:
-                wname = kw['wagon_no']
-                if wname is None or not (1 <= int(wname) <= 80) or str(wname) not in wagons:
-                    EtlReject.objects.create(
-                        module='kiln', source_row=kp['kiln_push_id'],
-                        reason=f"invalid wagon_no={wname} in kiln_push {kp['kiln_push_id']}",
-                        raw=str(kw))
-                    stats['kiln_reject'] += 1
-                    continue
-                wagon = wagons[str(wname)]
-                trip = (
-                    WagonTrip.objects
-                    .filter(wagon=wagon,
-                            status__in=[WagonTrip.STATUS_IN_PROGRESS, WagonTrip.STATUS_WAITING_HALL])
-                    .order_by('trip_id').first()
-                )
-                if trip is None:
-                    EtlReject.objects.create(
-                        module='kiln', source_row=kp['kiln_push_id'],
-                        reason=f"no active trip for wagon {wname} at kiln_push {kp['kiln_push_id']}",
-                        raw=str(kw))
-                    stats['kiln_reject'] += 1
-                    continue
-                try:
-                    services.push_wagon(
-                        trip=trip,
-                        client_token=_token(100000 + kp['kiln_push_id']),
-                        push_date=kp['push_date'] or '',
-                        push_time=kp['push_time'],
-                        shift=kp['shift'],
-                        operator=operators.get(kp['operator_id']),
-                        product=products.get(kp['product_id']),
-                    )
-                    pushed_any = True
-                except Exception as e:  # noqa: BLE001
-                    EtlReject.objects.create(
-                        module='kiln', source_row=kp['kiln_push_id'],
-                        reason=f"service error: {e}", raw=str(kp))
-                    stats['kiln_reject'] += 1
-            if pushed_any:
-                stats['kiln'] += 1
-
-        # ---- 2b) KILN EXIT: free tunnel capacity (FIFO-44 discharge) ----
-        # Historical kiln_exit rows drive discharge so the 44-capacity ceiling does not
-        # jam. Without this, pushes after the 44th are all rejected ("tunnel full").
-        # staging kiln_exit uses wagon_id (FK to wagon.wagon_id), not wagon_no.
-        exits = _rows(
-            'SELECT wagon_id, exit_push_seq, exit_date, discharged FROM kiln_exit '
+        # staging kiln_exit links by (entry_push_seq, exit_push_seq); wagon via wagon_id.
+        exit_rows = _rows(
+            'SELECT wagon_id, entry_push_seq, exit_push_seq, exit_date FROM kiln_exit '
             'ORDER BY exit_push_seq'
         )
         wagon_by_id = {w.wagon_id: w for w in Wagon.objects.all()}
-        for ke in exits:
-            w = wagon_by_id.get(ke['wagon_id'])
-            if w is None:
-                EtlReject.objects.create(
-                    module='kiln', source_row=None,
-                    reason=f"invalid wagon_id={ke['wagon_id']} in kiln_exit", raw=str(ke))
-                stats['kiln_reject'] += 1
-                continue
-            trip = (
-                WagonTrip.objects
-                .filter(wagon=w, status=WagonTrip.STATUS_IN_TUNNEL)
-                .order_by('trip_id').first()
-            )
-            if trip is None:
-                continue  # already discharged or never pushed; not an error in replay
-            # The push already auto-created a KilnExit (discharged=False, FIFO-44 seq).
-            # Historical kiln_exit only needs to mark it discharged + advance the trip.
-            try:
-                from mes.models import KilnExit
+
+        # Build a merged, ordered timeline of events.
+        # (+1 push at its push_seq, -1 exit at its exit_push_seq)
+        timeline = []
+        for kp in pushes:
+            timeline.append((int(kp['push_seq']), 'push', kp))
+        for er in exit_rows:
+            timeline.append((int(er['exit_push_seq']), 'exit', er))
+        timeline.sort(key=lambda t: (t[0], 0 if t[1] == 'exit' else 1))
+
+        for seq, kind, row in timeline:
+            if kind == 'push':
+                kp = row
+                kw_rows = kw_by_push.get(int(kp['kiln_push_id']), [])
+                pushed_any = False
+                for kw in kw_rows:
+                    wname = kw['wagon_no']
+                    if wname is None or not (1 <= int(wname) <= 80) or str(wname) not in wagons:
+                        EtlReject.objects.create(
+                            module='kiln', source_row=kp['kiln_push_id'],
+                            reason=f"invalid wagon_no={wname} in kiln_push {kp['kiln_push_id']}",
+                            raw=str(kw))
+                        stats['kiln_reject'] += 1
+                        continue
+                    wagon = wagons[str(wname)]
+                    trip = (
+                        WagonTrip.objects
+                        .filter(wagon=wagon,
+                                status__in=[WagonTrip.STATUS_IN_PROGRESS, WagonTrip.STATUS_WAITING_HALL])
+                        .order_by('trip_id').first()
+                    )
+                    if trip is None:
+                        # Wagon has no active (setting/waiting-hall) trip. Two legit cases:
+                        #  (a) its setting batch was dirty and never created a trip -> reject.
+                        #  (b) the push belongs to a wagon whose trip completed via packing
+                        #      already and this is a duplicate/late push -> reject (not an error).
+                        # We do NOT jam the tunnel for it.
+                        EtlReject.objects.create(
+                            module='kiln', source_row=kp['kiln_push_id'],
+                            reason=f"no active trip for wagon {wname} at kiln_push {kp['kiln_push_id']}",
+                            raw=str(kw))
+                        stats['kiln_reject'] += 1
+                        continue
+                    try:
+                        services.push_wagon(
+                            trip=trip,
+                            client_token=_token(100000 + kp['kiln_push_id']),
+                            push_date=kp['push_date'] or '',
+                            push_time=kp['push_time'],
+                            shift=kp['shift'],
+                            operator=operators.get(kp['operator_id']),
+                            product=products.get(kp['product_id']),
+                        )
+                        pushed_any = True
+                    except Exception as e:  # noqa: BLE001
+                        EtlReject.objects.create(
+                            module='kiln', source_row=kp['kiln_push_id'],
+                            reason=f"service error: {e}", raw=str(kp))
+                        stats['kiln_reject'] += 1
+                if pushed_any:
+                    stats['kiln'] += 1
+            else:  # 'exit'
+                er = row
+                w = wagon_by_id.get(er['wagon_id'])
+                if w is None:
+                    EtlReject.objects.create(
+                        module='kiln', source_row=None,
+                        reason=f"invalid wagon_id={er['wagon_id']} in kiln_exit", raw=str(er))
+                    stats['kiln_reject'] += 1
+                    continue
+                trip = (
+                    WagonTrip.objects
+                    .filter(wagon=w, status=WagonTrip.STATUS_IN_TUNNEL)
+                    .order_by('trip_id').first()
+                )
+                if trip is None:
+                    continue  # already discharged or never pushed; not an error in replay
+                # The push already auto-created a KilnExit (discharged=False, FIFO-44 seq).
+                # Historical kiln_exit only needs to mark it discharged + advance the trip.
                 ke = KilnExit.objects.filter(trip=trip).first()
                 if ke is not None:
                     ke.discharged = True
                     ke.save(update_fields=['discharged'])
                 trip.status = WagonTrip.STATUS_AWAITING_DISCHARGE
                 trip.save(update_fields=['status'])
-            except Exception as e:  # noqa: BLE001
-                EtlReject.objects.create(
-                    module='kiln', source_row=None,
-                    reason=f"exit update error: {e}", raw=str(ke))
-                stats['kiln_reject'] += 1
 
         # ---- 3) PACKING: close trips ----
+        # Pre-load ALL packing_wagon rows once (avoids a SQL round-trip per header).
+        pw_all = _rows(
+            'SELECT packing_header_id, wagon_no, product_id, total_count, grade1_count, '
+            'grade2_count, waste_count FROM packing_wagon'
+        )
+        pw_by_header = {}
+        for r in pw_all:
+            pw_by_header.setdefault(int(r['packing_header_id']), []).append(r)
+
         headers = _rows(
             'SELECT packing_header_id, pack_date, shift, controller_id FROM packing_header '
             'ORDER BY packing_header_id'
         )
         for ph in headers:
-            pw_rows = _rows(
-                'SELECT wagon_no, product_id, total_count, grade1_count, grade2_count, '
-                'waste_count FROM packing_wagon WHERE packing_header_id = %s'
-                % ph['packing_header_id']
-            )
+            pw_rows = pw_by_header.get(int(ph['packing_header_id']), [])
             packed_any = False
             wagon_payloads = []
             for pw in pw_rows:

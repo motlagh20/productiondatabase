@@ -129,6 +129,21 @@ PR [#1](https://github.com/motlagh20/productiondatabase/pull/1) (`m5-slice-build
   the paper ledgers. Replay is idempotent via deterministic UUID `client_token`s derived from
   staging source keys. This is the missing "hard 30%": the app is now load-tested against real
   historical shape, not just synthetic single-trip tests.
+- **ETL verified result (full replay of all historical staging):**
+  - setting: **11,120** events loaded, 13,245 rejected (dirty `wagon_no` NULL/>80 — expected).
+  - kiln: **31,301** pushes loaded, 7,525 rejected (orphan pushes for wagons whose setting
+    batch was dirty → no trip existed; correctly quarantined).
+  - packing: **3,181** headers loaded, 55,324 wagon-rows rejected (orphans whose upstream trip
+    was rejected, plus a few duplicate historical packing rows caught by `register_packing`'s
+    completed-trip guard).
+  - Spine outcome: **31,301 WagonTrip**, all `completed`; 31,301 KilnExit (all discharged);
+    0 wagons stuck in tunnel / awaiting-discharge. **Peak tunnel occupancy = 43** (never
+    exceeds the 44-wagon physical ceiling — FIFO-44 confirmed against real data; the apparent
+    "153" at the tail of the sequence is purely the 110 unexited end-of-file wagons still in
+    the tunnel when the ledger was snapped, not a capacity violation).
+  - Lesson learned: pushes and exits MUST be interleaved on one sequence-ordered timeline;
+    running all pushes before any exit fills the 44-wagon tunnel and jams (false "tunnel full"
+    rejects). Fixed in `replay_historical` stage 2.
 - **Tests:** 12 acceptance tests covering FIFO-44 ceiling + slot freeing, exit=entry+43,
   one-trip-across-days spine, replay idempotency, out-of-range plate rejection, plate dropdown
   range, packing state guard, unauthenticated rejection, service-layer rule violation.
