@@ -117,7 +117,7 @@ export default function PackingForm() {
           />
         </Field>
         <Field label="تاریخ بسته‌بندی">
-          <JalaliDatePicker value={packDate} onChange={setPackDate} placeholder="انتخاب تاریخ" />
+          <JalaliDatePicker value={packDate} onChange={(v) => setPackDate(v ?? '')} placeholder="انتخاب تاریخ" />
         </Field>
 
         {awaiting.length === 0 ? (

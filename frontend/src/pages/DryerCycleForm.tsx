@@ -108,13 +108,13 @@ export default function DryerCycleForm() {
           />
         </Field>
         <Field label="تاریخ بارگیری">
-          <JalaliDatePicker value={loadDate} onChange={setLoadDate} placeholder="انتخاب تاریخ بارگیری" />
+          <JalaliDatePicker value={loadDate} onChange={(v) => setLoadDate(v ?? '')} placeholder="انتخاب تاریخ بارگیری" />
         </Field>
         <Field label="ساعت بارگیری">
           <Input type="time" value={loadTime} onChange={setLoadTime} />
         </Field>
         <Field label="تاریخ تخلیه">
-          <JalaliDatePicker value={unloadDate} onChange={setUnloadDate} placeholder="انتخاب تاریخ تخلیه" />
+          <JalaliDatePicker value={unloadDate} onChange={(v) => setUnloadDate(v ?? '')} placeholder="انتخاب تاریخ تخلیه" />
         </Field>
         <Field label="ساعت تخلیه">
           <Input type="time" value={unloadTime} onChange={setUnloadTime} />

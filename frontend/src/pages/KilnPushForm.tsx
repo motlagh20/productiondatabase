@@ -84,7 +84,7 @@ export default function KilnPushForm() {
             <Select value={shift} onChange={setShift} options={SHIFTS.map((s) => ({ value: s.value, label: s.label }))} />
           </Field>
           <Field label="تاریخ پوش">
-            <JalaliDatePicker value={pushDate} onChange={setPushDate} placeholder="انتخاب تاریخ" />
+            <JalaliDatePicker value={pushDate} onChange={(v) => setPushDate(v ?? '')} placeholder="انتخاب تاریخ" />
           </Field>
           <Field label="ساعت پوش (دقیق)">
             <Input type="time" value={pushTime} onChange={setPushTime} />

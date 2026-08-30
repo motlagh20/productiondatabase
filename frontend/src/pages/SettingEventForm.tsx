@@ -139,7 +139,7 @@ export default function SettingEventForm() {
           <Select value={shift} onChange={setShift} options={SHIFTS.map((s) => ({ value: s.value, label: s.label }))} />
         </Field>
         <Field label="تاریخ ستینگ">
-          <JalaliDatePicker value={dateJalali} onChange={setDateJalali} placeholder="انتخاب تاریخ" />
+          <JalaliDatePicker value={dateJalali} onChange={(v) => setDateJalali(v ?? '')} placeholder="انتخاب تاریخ" />
         </Field>
 
         <div className="sm:col-span-2">
