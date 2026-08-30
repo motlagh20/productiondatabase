@@ -29,6 +29,11 @@ env/
 venv/
 ENV/
 
+# Environment / secrets — never commit
+.env
+backend/.env
+*.local.env
+
 # Database files (Development
 .DS_Store
 Thumbs.db

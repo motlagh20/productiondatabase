@@ -1,0 +1,20 @@
+# Dedicated PostgreSQL for the M5 application (clean core, ADR-0008).
+# SEPARATE from docker-compose.data.yml (historical staging on port 5433).
+# The app DB must never share a container/DB with staging so a staging reload or
+# incident cannot touch live application data. Data persists in `pgdata_app`.
+services:
+  postgres_app:
+    image: postgres:16
+    container_name: productiondb-app
+    environment:
+      POSTGRES_USER: mes
+      POSTGRES_PASSWORD: mes_secret
+      POSTGRES_DB: mes_app
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata_app:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  pgdata_app:
