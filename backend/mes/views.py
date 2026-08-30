@@ -6,12 +6,11 @@ from rest_framework.response import Response
 
 from . import services
 from .exceptions import IsManager
-from .models import Chamber, Glaze, KilnSensor, Operator, Product, Wagon, WagonTrip
+from .models import Chamber, Glaze, KilnPush, KilnSensor, Operator, Product, Wagon, WagonTrip
 from .serializers import (
     ChamberOut,
     DryerCycleIn,
     GlazeOut,
-    KilnExitIn,
     KilnPushIn,
     OperatorOut,
     PackingHeaderIn,
@@ -52,12 +51,6 @@ def dryer_cycle_create(request):
 
 def _as_lookup_objects(serializer, validated, wagon=None, trip=None):
     obj = dict(validated)
-    plate = obj.pop('plate', None)
-    chamber_code = obj.pop('chamber_code', None)
-    if plate is not None:
-        obj['wagon'] = Wagon.objects.get(wagon_name=plate)
-    if chamber_code:
-        obj['chamber'] = Chamber.objects.get(chamber_code=chamber_code)
     if trip is not None:
         obj['trip'] = trip
     return obj
@@ -70,7 +63,7 @@ def setting_event_create(request):
     ser = SettingEventIn(data=request.data)
     ser.is_valid(raise_exception=True)
     data = dict(ser.validated_data)
-    chamber = Chamber.objects.get(chamber_code=data.pop('chamber_code'))
+    chamber = Chamber.objects.get(pk=data.pop('chamber_id'))
     wagons = data.pop('wagons')
     client_token = data.pop('client_token', None)
     # resolve wagon FKs inside each wagon payload
@@ -99,13 +92,39 @@ def setting_event_create(request):
 @api_view(['POST'])
 @permission_classes([WRITE_PERMISSION])
 def kiln_push_create(request):
-    """F3: register a kiln push (1 wagon, optional 18 sensor readings)."""
+    """F3: register a kiln push for an ACTIVE wagon (1 wagon, optional 18 sensor readings).
+    Auto-derives the FIFO-44 discharge (no manual exit form)."""
     ser = KilnPushIn(data=request.data)
     ser.is_valid(raise_exception=True)
     data = dict(ser.validated_data)
-    trip = WagonTrip.objects.get(pk=data.pop('trip_id'))
-    readings = data.pop('readings', None)
+    wagon = Wagon.objects.get(pk=data.pop('wagon_id'))
     client_token = data.pop('client_token', None)
+
+    # Replay-safe: if this exact (wagon + token) was already pushed, return it.
+    if client_token is not None:
+        existing = KilnPush.objects.filter(client_token=client_token, wagon=wagon).first()
+        if existing is not None:
+            return Response({
+                'kiln_push_id': existing.kiln_push_id,
+                'trip_id': existing.trip_id,
+                'push_seq': existing.push_seq,
+                'exit_push_seq': existing.push_seq + 43,
+                'status': existing.trip.status,
+            }, status=status.HTTP_201_CREATED)
+
+    # Find the active trip for this wagon (the one not yet packed).
+    trip = (
+        WagonTrip.objects
+        .filter(wagon=wagon, status__in=[WagonTrip.STATUS_IN_PROGRESS, WagonTrip.STATUS_WAITING_HALL])
+        .order_by('trip_id')
+        .first()
+    )
+    if trip is None:
+        return Response(
+            {'detail': f'Wagon {wagon.wagon_name} has no active (setting/waiting-hall) trip to push.'},
+            status=status.HTTP_409_CONFLICT,
+        )
+    readings = data.pop('readings', None)
     if data.get('operator_id'):
         data['operator'] = Operator.objects.get(pk=data.pop('operator_id'))
     if data.get('product_id'):
@@ -115,24 +134,8 @@ def kiln_push_create(request):
         'kiln_push_id': push.kiln_push_id,
         'trip_id': push.trip_id,
         'push_seq': push.push_seq,
+        'exit_push_seq': push.push_seq + 43,
         'status': push.trip.status,
-    }, status=status.HTTP_201_CREATED)
-
-
-@api_view(['POST'])
-@permission_classes([WRITE_PERMISSION])
-def kiln_exit_create(request):
-    """F4: mark trip discharge → awaiting-discharge list (exit = entry + 43)."""
-    ser = KilnExitIn(data=request.data)
-    ser.is_valid(raise_exception=True)
-    trip = WagonTrip.objects.get(pk=ser.validated_data['trip_id'])
-    kiln_exit = services.exit_wagon(trip=trip, exit_date=ser.validated_data.get('exit_date', ''))
-    return Response({
-        'kiln_exit_id': kiln_exit.kiln_exit_id,
-        'trip_id': trip.trip_id,
-        'entry_push_seq': kiln_exit.entry_push_seq,
-        'exit_push_seq': kiln_exit.exit_push_seq,
-        'status': trip.status,
     }, status=status.HTTP_201_CREATED)
 
 
@@ -201,6 +204,19 @@ def sensor_list(request):
     return Response([
         {'sensor_id': s.sensor_id, 'sensor_code': s.sensor_code, 'sensor_name': s.sensor_name}
         for s in sensors
+    ])
+
+
+@api_view(['GET'])
+@permission_classes([WRITE_PERMISSION])
+def active_wagons_list(request):
+    """Wagons with an active (setting/waiting-hall) trip — the ones eligible for a kiln push."""
+    trips = WagonTrip.objects.filter(
+        status__in=[WagonTrip.STATUS_IN_PROGRESS, WagonTrip.STATUS_WAITING_HALL]
+    ).order_by('trip_id')
+    return Response([
+        {'trip_id': t.trip_id, 'wagon_id': t.wagon.wagon_id, 'plate': t.wagon.wagon_name}
+        for t in trips
     ])
 
 

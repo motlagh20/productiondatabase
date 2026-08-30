@@ -82,9 +82,12 @@ def push_wagon(*, trip, readings=None, client_token=None, **fields):
     """F3: register a kiln push. Enforces FIFO-44 occupancy ceiling.
 
     `readings` = list of {sensor_code, temperature_c}. `trip` moves to in_tunnel.
+    Replay-safe: a repeated (wagon_id + client_token) returns the original push.
     """
     if client_token is not None:
-        existing = KilnPush.objects.filter(client_token=client_token).first()
+        existing = KilnPush.objects.filter(
+            client_token=client_token, wagon=trip.wagon,
+        ).first()
         if existing is not None:
             return existing
 

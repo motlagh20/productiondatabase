@@ -31,7 +31,7 @@ class SettingWagonIn(serializers.Serializer):
 
 class SettingEventIn(serializers.Serializer):
     """CHAMBER-CENTRIC Setting batch: one chamber + 1..4 wagons fed from it."""
-    chamber_code = serializers.CharField(max_length=20)
+    chamber_id = serializers.IntegerField()
     date_jalali = serializers.CharField(max_length=10, required=False, allow_blank=True)
     shift = serializers.IntegerField(required=False, allow_null=True)
     product_id = serializers.IntegerField(required=False, allow_null=True)
@@ -44,9 +44,9 @@ class SettingEventIn(serializers.Serializer):
     wagons = SettingWagonIn(many=True)
     client_token = serializers.UUIDField(required=False, allow_null=True)
 
-    def validate_chamber_code(self, value):
-        if not Chamber.objects.filter(chamber_code=value).exists():
-            raise serializers.ValidationError(f'Unknown chamber: {value}')
+    def validate_chamber_id(self, value):
+        if not Chamber.objects.filter(pk=value).exists():
+            raise serializers.ValidationError(f'Unknown chamber id: {value}')
         return value
 
     def validate_wagons(self, value):
@@ -56,7 +56,7 @@ class SettingEventIn(serializers.Serializer):
 
 
 class KilnPushIn(serializers.Serializer):
-    trip_id = serializers.IntegerField()
+    wagon_id = serializers.IntegerField()
     push_date = serializers.CharField(max_length=10, required=False, allow_blank=True)
     push_time = serializers.TimeField(required=False, allow_null=True)
     shift = serializers.IntegerField(required=False, allow_null=True)
@@ -65,10 +65,10 @@ class KilnPushIn(serializers.Serializer):
     readings = ReadingIn(many=True, required=False)
     client_token = serializers.UUIDField(required=False, allow_null=True)
 
-
-class KilnExitIn(serializers.Serializer):
-    trip_id = serializers.IntegerField()
-    exit_date = serializers.CharField(max_length=10, required=False, allow_blank=True)
+    def validate_wagon_id(self, value):
+        if not Wagon.objects.filter(pk=value).exists():
+            raise serializers.ValidationError(f'Unknown wagon id: {value}')
+        return value
 
 
 class PackingWagonIn(serializers.Serializer):

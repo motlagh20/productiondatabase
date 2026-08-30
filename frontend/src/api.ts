@@ -57,6 +57,11 @@ export const fetchSensors = () => api.get<Sensor[]>('/dimensions/sensors/').then
 export const fetchAwaitingDischarge = () =>
   api.get<AwaitingTrip[]>('/dashboard/awaiting-discharge/').then((r) => r.data)
 
+/** Wagons with an active (setting/waiting-hall) trip, ready to be pushed into the kiln. */
+export interface ActiveWagon { trip_id: number; wagon_id: number; plate: string }
+export const fetchActiveWagons = () =>
+  api.get<ActiveWagon[]>('/dashboard/active-wagons/').then((r) => r.data)
+
 // --- Writes (F2–F5) ---
 export interface SettingWagonPayload {
   wagon_id: number

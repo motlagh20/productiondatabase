@@ -2,9 +2,11 @@
 import { useEffect, useState } from 'react'
 import {
   apiErrorMessage,
+  fetchActiveWagons,
   fetchOperators,
   fetchSensors,
   postKilnPush,
+  type ActiveWagon,
   type Operator,
   type Sensor,
 } from '../api'
@@ -15,9 +17,10 @@ import { SHIFTS, todayJalali } from '../jalali'
 export default function KilnPushForm() {
   const [operators, setOperators] = useState<Operator[]>([])
   const [sensors, setSensors] = useState<Sensor[]>([])
+  const [active, setActive] = useState<ActiveWagon[]>([])
   const [temps, setTemps] = useState<Record<string, string>>({})
 
-  const [tripId, setTripId] = useState('')
+  const [wagonId, setWagonId] = useState('')
   const [operatorId, setOperatorId] = useState('')
   const [shift, setShift] = useState('')
   const [pushDate, setPushDate] = useState(todayJalali())
@@ -28,10 +31,11 @@ export default function KilnPushForm() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    Promise.all([fetchOperators(), fetchSensors()])
-      .then(([o, s]) => {
+    Promise.all([fetchOperators(), fetchSensors(), fetchActiveWagons()])
+      .then(([o, s, a]) => {
         setOperators(o)
         setSensors(s)
+        setActive(a)
       })
       .catch((e) => setError(apiErrorMessage(e)))
   }, [])
@@ -46,15 +50,15 @@ export default function KilnPushForm() {
         .filter((s) => temps[s.sensor_code])
         .map((s) => ({ sensor_code: s.sensor_code, temperature_c: temps[s.sensor_code] }))
       const data = await postKilnPush({
-        trip_id: Number(tripId),
+        wagon_id: Number(wagonId),
         push_date: pushDate,
         operator_id: operatorId ? Number(operatorId) : undefined,
         shift: shift ? Number(shift) : undefined,
         push_time: pushTime || undefined,
         readings,
       })
-      setResult(`هل ${data.push_seq} ثبت شد (تریپ ${data.trip_id} → ${data.status}).`)
-      setTripId('')
+      setResult(`هل ${data.push_seq} ثبت شد (واگن ${data.trip_id} → ${data.status}).`)
+      setWagonId('')
       setTemps({})
     } catch (err) {
       setError(apiErrorMessage(err))
@@ -70,8 +74,13 @@ export default function KilnPushForm() {
     >
       <form onSubmit={submit} className="flex flex-col gap-4">
         <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="شناسه تریپ (در انتظار)">
-            <Input value={tripId} onChange={setTripId} type="number" />
+          <Field label="واگن آماده (ستینگ‌شده)">
+            <Select
+              value={wagonId}
+              onChange={setWagonId}
+              placeholder={active.length ? 'انتخاب واگن' : 'واگن فعالی در انتظار نیست'}
+              options={active.map((w) => ({ value: w.wagon_id, label: `واگن ${w.plate}` }))}
+            />
           </Field>
           <Field label="اپراتور">
             <Select

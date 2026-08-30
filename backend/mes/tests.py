@@ -46,7 +46,7 @@ class SliceTestBase(APITestCase):
         """Submit a chamber-centric Setting batch with the given wagon plates.
         Returns the response; use .data['trip_ids'][0] for the first wagon's trip."""
         resp = self.client.post('/api/setting/events/', {
-            'chamber_code': self.chamber.chamber_code,
+            'chamber_id': self.chamber.chamber_id,
             'date_jalali': '1404.06.07',
             'shift': 1,
             'product_id': self.product.product_id,
@@ -62,6 +62,14 @@ class SliceTestBase(APITestCase):
         }, format='json')
         return resp
 
+    def _push(self, trip_id, **extra):
+        """Push the ACTIVE trip of the wagon that owns `trip_id`.
+        Resolves the wagon from the trip (the new API takes wagon_id)."""
+        wagon_id = WagonTrip.objects.get(pk=trip_id).wagon_id
+        payload = {'wagon_id': wagon_id, 'client_token': str(uuid.uuid4())}
+        payload.update(extra)
+        return self.client.post('/api/kiln/pushes/', payload, format='json')
+
 
 class TripSpineTests(SliceTestBase):
     def test_one_trip_across_three_days(self):
@@ -73,13 +81,8 @@ class TripSpineTests(SliceTestBase):
         trip_id = trip_ids[0]
         self.assertEqual(load.data['wagon_count'], 1)
 
-        push = self.client.post('/api/kiln/pushes/', {
-            'trip_id': trip_id,
-            'push_date': '1404.06.08',
-            'operator_id': self.operator.operator_id,
-            'readings': [{'sensor_code': 'temp_Zone00', 'temperature_c': '950.50'}],
-            'client_token': str(uuid.uuid4()),
-        }, format='json')
+        push = self._push(trip_id, push_date='1404.06.08', operator_id=self.operator.operator_id,
+                          readings=[{'sensor_code': 'temp_Zone00', 'temperature_c': '950.50'}])
         self.assertEqual(push.status_code, 201)
         self.assertEqual(push.data['trip_id'], trip_id)
         self.assertEqual(push.data['status'], 'in_tunnel')
@@ -113,9 +116,7 @@ class TripSpineTests(SliceTestBase):
         """FIFO-44 rule: a wagon entering at push_seq P exits at P+43 (auto-derived on push)."""
         from mes.models import KilnExit
         trip_id = self._load().data['trip_ids'][0]
-        push = self.client.post('/api/kiln/pushes/', {
-            'trip_id': trip_id, 'client_token': str(uuid.uuid4()),
-        }, format='json')
+        push = self._push(trip_id)
         entry = push.data['push_seq']
         # exit is derived automatically on push (F4): no manual endpoint
         ke = KilnExit.objects.get(trip_id=trip_id)
@@ -131,18 +132,14 @@ class FifoCapacityTests(SliceTestBase):
             trip_ids.append(self._load(plates=(str(n),)).data['trip_ids'][0])
 
         for trip_id in trip_ids[:44]:
-            r = self.client.post('/api/kiln/pushes/', {
-                'trip_id': trip_id, 'client_token': str(uuid.uuid4()),
-            }, format='json')
+            r = self._push(trip_id)
             self.assertEqual(r.status_code, 201)
 
         self.assertEqual(
             WagonTrip.objects.filter(status=WagonTrip.STATUS_IN_TUNNEL).count(), 44,
         )
 
-        overflow = self.client.post('/api/kiln/pushes/', {
-            'trip_id': trip_ids[44], 'client_token': str(uuid.uuid4()),
-        }, format='json')
+        overflow = self._push(trip_ids[44])
         self.assertEqual(overflow.status_code, 400)
         self.assertIn('full', overflow.data['detail'].lower())
         # Occupancy still exactly at capacity, never above.
@@ -155,14 +152,11 @@ class FifoCapacityTests(SliceTestBase):
         from mes.models import WagonTrip, KilnExit
         trip_ids = [self._load(plates=(str(n),)).data['trip_ids'][0] for n in range(1, 46)]
         for trip_id in trip_ids[:44]:
-            self.client.post('/api/kiln/pushes/',
-                             {'trip_id': trip_id, 'client_token': str(uuid.uuid4())}, format='json')
+            self._push(trip_id)
         # Simulate discharge: mark the first wagon's KilnExit as discharged + trip completed.
         KilnExit.objects.filter(trip_id=trip_ids[0]).update(discharged=True)
         WagonTrip.objects.filter(pk=trip_ids[0]).update(status=WagonTrip.STATUS_AWAITING_DISCHARGE)
-        r = self.client.post('/api/kiln/pushes/',
-                             {'trip_id': trip_ids[44], 'client_token': str(uuid.uuid4())},
-                             format='json')
+        r = self._push(trip_ids[44])
         self.assertEqual(r.status_code, 201)
 
 
@@ -181,10 +175,11 @@ class ReplaySafetyTests(SliceTestBase):
     def test_repeated_push_token_creates_one_push(self):
         trip_id = self._load().data['trip_ids'][0]
         token = str(uuid.uuid4())
-        a = self.client.post('/api/kiln/pushes/', {'trip_id': trip_id, 'client_token': token},
-                             format='json')
-        b = self.client.post('/api/kiln/pushes/', {'trip_id': trip_id, 'client_token': token},
-                             format='json')
+        a = self._push(trip_id, client_token=token)
+        b = self._push(trip_id, client_token=token)
+        # Replay-safe: both calls resolve to the SAME push row (same client_token).
+        self.assertEqual(a.status_code, 201)
+        self.assertEqual(b.status_code, 201)
         self.assertEqual(a.data['kiln_push_id'], b.data['kiln_push_id'])
         self.assertEqual(KilnPush.objects.count(), 1)
 
@@ -195,7 +190,7 @@ class CleanCoreBoundaryTests(SliceTestBase):
         referencing it is rejected (clean-core: dropdown prevents typos at source)."""
         self.assertFalse(Wagon.objects.filter(wagon_name='81').exists())
         r = self.client.post('/api/setting/events/', {
-            'chamber_code': self.chamber.chamber_code,
+            'chamber_id': self.chamber.chamber_id,
             'wagons': [{'wagon_id': 99999}],  # non-existent wagon FK
             'client_token': str(uuid.uuid4()),
         }, format='json')

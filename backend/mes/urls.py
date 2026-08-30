@@ -18,4 +18,5 @@ urlpatterns = [
     path('dimensions/chambers/', views.chamber_list, name='chamber-list'),
     path('dimensions/sensors/', views.sensor_list, name='sensor-list'),
     path('dashboard/awaiting-discharge/', views.awaiting_discharge_list, name='awaiting-discharge-list'),
+    path('dashboard/active-wagons/', views.active_wagons_list, name='active-wagons-list'),
 ]
