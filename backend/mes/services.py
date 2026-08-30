@@ -7,13 +7,16 @@ no Excel-era typo tolerance (ADR-0008).
 from django.db import transaction
 
 from .models import (
+    DryerCycle,
+    DryerReading,
     KilnExit,
     KilnPush,
     KilnReading,
     KilnSensor,
     PackingHeader,
     PackingWagon,
-    SettingLoad,
+    SettingEvent,
+    SettingWagon,
     WagonTrip,
 )
 
@@ -25,23 +28,43 @@ class RuleViolation(Exception):
 
 
 @transaction.atomic
-def start_setting_load(*, wagon, client_token=None, **fields):
-    """F2: register a wagon load and assign its trip at load START.
-
-    Replay-safe: a repeated client_token returns the original load unchanged.
+def create_setting_batch(*, chamber, wagons, client_token=None, **event_fields):
+    """F2 (CHAMBER-CENTRIC): register a Setting batch for one dryer chamber, then 1..4 wagons
+    fed from THAT chamber. Each wagon gets its own trip at load START.
+    `wagons` = list of {wagon, glaze?, start_time?, end_time?, packages?, khesht_count?}.
+    Replay-safe: a repeated client_token returns the original event unchanged.
     """
     if client_token is not None:
-        existing = SettingLoad.objects.filter(client_token=client_token).first()
+        existing = SettingEvent.objects.filter(client_token=client_token).first()
         if existing is not None:
             return existing
 
-    trip = WagonTrip.objects.create(
-        wagon=wagon, status=WagonTrip.STATUS_IN_PROGRESS, source_module='setting',
-    )
-    load = SettingLoad.objects.create(
-        trip=trip, wagon=wagon, client_token=client_token, **fields,
-    )
-    return load
+    event = SettingEvent.objects.create(chamber=chamber, client_token=client_token, **event_fields)
+    for i, w in enumerate(wagons, start=1):
+        wagon = w.pop('wagon')
+        trip = WagonTrip.objects.create(
+            wagon=wagon, status=WagonTrip.STATUS_IN_PROGRESS, source_module='setting',
+        )
+        SettingWagon.objects.create(
+            setting_event=event, wagon=wagon, trip=trip, position_in_event=i, **w,
+        )
+    return event
+
+
+@transaction.atomic
+def create_dryer_cycle(*, chamber, readings=None, **cycle_fields):
+    """F1 (FIRST production step): register a dryer chamber load/unload cycle and its
+    hourly humidity/temp readings. Produces the dried body that Setting later loads.
+    """
+    cycle = DryerCycle.objects.create(chamber=chamber, **cycle_fields)
+    for r in (readings or []):
+        DryerReading.objects.create(
+            dryer_cycle=cycle,
+            hour_offset=r.get('hour_offset'),
+            humidity_pct=r.get('humidity_pct'),
+            temperature_c=r.get('temperature_c'),
+        )
+    return cycle
 
 
 def _next_push_seq():
@@ -85,6 +108,13 @@ def push_wagon(*, trip, readings=None, client_token=None, **fields):
 
     trip.status = WagonTrip.STATUS_IN_TUNNEL
     trip.save(update_fields=['status'])
+
+    # F4 (auto): derive the discharge record for FIFO-44 — no manual form.
+    # exit_push_seq = entry_push_seq + 43 (tunnel fixed capacity 44).
+    KilnExit.objects.update_or_create(
+        trip=trip, wagon=trip.wagon,
+        defaults={'entry_push_seq': push.push_seq, 'exit_push_seq': push.push_seq + (KILN_CAPACITY - 1)},
+    )
     return push
 
 
@@ -123,9 +153,9 @@ def register_packing(*, wagons, client_token=None, **header_fields):
     from django.utils import timezone
     for w in wagons:
         trip = WagonTrip.objects.select_for_update().get(pk=w['trip_id'])
-        if trip.status != WagonTrip.STATUS_AWAITING_DISCHARGE:
+        if trip.status not in (WagonTrip.STATUS_IN_TUNNEL, WagonTrip.STATUS_AWAITING_DISCHARGE):
             raise RuleViolation(
-                f'Trip {trip.trip_id} is {trip.status}; only awaiting_discharge trips can be packed.'
+                f'Trip {trip.trip_id} is {trip.status}; only in_tunnel/awaiting_discharge trips can be packed.'
             )
         PackingWagon.objects.create(
             packing_header=header, trip=trip, wagon=trip.wagon,
@@ -149,12 +179,13 @@ def wagon_journey(*, plate):
     trips = (
         WagonTrip.objects
         .filter(wagon__wagon_name=plate)
-        .prefetch_related('setting_loads', 'kiln_pushes', 'kiln_exits', 'packing_wagons')
+        .prefetch_related('setting_wagons', 'kiln_pushes', 'kiln_exits', 'packing_wagons')
         .order_by('trip_id')
     )
     result = []
     for t in trips:
-        sl = t.setting_loads.first()
+        sw = t.setting_wagons.first()
+        ev = sw.setting_event if sw else None
         kp = t.kiln_pushes.order_by('push_seq').first()
         ke = t.kiln_exits.order_by('exit_push_seq').first()
         pw = t.packing_wagons.first()
@@ -164,9 +195,10 @@ def wagon_journey(*, plate):
             'started_at': t.started_at,
             'completed_at': t.completed_at,
             'setting': {
-                'date_jalali': sl.date_jalali, 'shift': sl.shift,
-                'start_time': sl.start_time, 'end_time': sl.end_time,
-            } if sl else None,
+                'date_jalali': ev.date_jalali, 'shift': ev.shift,
+                'start_time': sw.start_time, 'end_time': sw.end_time,
+                'chamber': ev.chamber.chamber_code if ev and ev.chamber else None,
+            } if sw else None,
             'kiln_entry': {
                 'push_seq': kp.push_seq, 'push_date': kp.push_date, 'push_time': kp.push_time,
             } if kp else None,

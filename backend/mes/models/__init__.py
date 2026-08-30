@@ -7,17 +7,20 @@ from .dimensions import (
     Wagon,
 )
 from .spine import (
+    DryerCycle,
+    DryerReading,
     KilnExit,
     KilnPush,
     KilnReading,
     PackingHeader,
     PackingWagon,
-    SettingLoad,
+    SettingEvent,
+    SettingWagon,
     WagonTrip,
 )
 
 __all__ = [
     'Chamber', 'Glaze', 'KilnSensor', 'Operator', 'Product', 'Wagon',
-    'WagonTrip', 'SettingLoad', 'KilnPush', 'KilnReading', 'KilnExit',
-    'PackingHeader', 'PackingWagon',
+    'WagonTrip', 'DryerCycle', 'DryerReading', 'SettingEvent', 'SettingWagon',
+    'KilnPush', 'KilnReading', 'KilnExit', 'PackingHeader', 'PackingWagon',
 ]

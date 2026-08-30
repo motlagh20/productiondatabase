@@ -42,7 +42,11 @@ Dryer (خشک‌کن)         — clay bodies are dried; chamber 1..40
    ↓
 Glazing (لعاب‌زنی)     — NOT YET IN SCOPE (future module)
    ↓
-Setting (ستینگ)       — dried body is loaded onto a wagon (plate name 1..80)
+Setting (ستینگ)       — **CHAMBER-CENTRIC**: when dryer chamber x is unloaded, its dried body is
+                        loaded onto 1–4 wagons until chamber x is fully emptied. The Setting form
+                        therefore selects a chamber, then records the wagons fed from THAT chamber
+                        in one batch. A Setting batch = (date, shift, chamber, operator) + 1..4 wagons,
+                        each with its own load start/end time, packages, glaze, khesht.
    ↓
 Waiting hall (سالن انتظار) — loaded wagons wait for a kiln push slot.
                         Temperature logging in this hall is anticipated later (owner 2026-08-29);
@@ -76,11 +80,11 @@ Packing (پکینگ/بسته‌بندی) — wagon discharged from kiln is unpac
 
 | ID | Requirement | Actor | Module | Notes |
 |----|-------------|-------|--------|-------|
-| F1 | Log a dryer cycle: chamber (1..40), load/unload datetime, operator, product, finger count, 22 hourly humidity/temp readings | Operator | Dryer | **First** production step; produces the dried body |
-| F2 | Register a wagon load: plate name, product, glaze, operator, shift, chamber (source ref to dryer), start/end time, packages, khesht count | Operator | Setting | **After** Dryer; loads dried body onto wagon; creates `wagon_trip` at load **start** |
-| F3 | Register a kiln push: 1 wagon, 18 sensor readings, operator, push time, duration | Operator | Kiln | Wagon enters from waiting hall; push = 1 unique event; push_seq by physical order |
-| F4 | Mark wagon discharge: wagon exits kiln → added to awaiting-discharge list (`kiln_exit`) | Operator | Kiln exit | FIFO: exit_push_seq = entry_push_seq + 43 |
-| F5 | Register packing: take 1+ wagons from awaiting-discharge, record grade/waste counts | Operator | Packing | Closes the `wagon_trip` |
+| F1 | Log a dryer cycle: chamber (1..40), load/unload datetime, operator, product, finger count, hourly humidity/temp readings | Operator | Dryer | **First** production step; produces the dried body that Setting later loads |
+| F2 | Register a **Setting batch** (CHAMBER-CENTRIC): select a dryer chamber (1..40), then record 1–4 wagons fed from THAT chamber in one submit — each wagon: plate, glaze, start/end load time, packages, khesht. Batch = (date, shift, chamber, operator). Creates one `wagon_trip` per wagon at load **start** | Operator | Setting | **After** Dryer; until the chamber is fully emptied its body goes only onto these wagons |
+| F3 | Register a kiln push: 1 wagon, 18 sensor readings, operator, **push time (exact HH:MM)**, duration | Operator | Kiln | Wagon enters from waiting hall; push = 1 unique event; push_seq by physical order; **on push, auto-compute & upsert `kiln_exit` (exit_push_seq = entry+43)** |
+| F4 | *(auto)* Wagon discharge is **derived**, not a form: each push updates `kiln_exit` (exit_push_seq = entry_push_seq + 43). A separate "confirm discharge" action may mark `discharged=TRUE` at physical unload | System | Kiln exit | FIFO-44; no manual exit_push_seq entry |
+| F5 | Register packing: take 1+ wagons from awaiting-discharge; for EACH wagon record **grade1 / grade2 / waste / total counts** (not just operator). Closes the `wagon_trip` | Operator | Packing | Full payload per packing_wagon (grades from staging `packing_wagon`) |
 | F6 | Dashboard: kiln tunnel occupancy (≤44), awaiting-discharge + waiting-hall counts | Manager | All | Real-time |
 | F7 | Dashboard: wagon journey trace (dryer → setting → waiting → kiln entry → kiln exit → packing) by plate name or trip_id | Manager | `wagon_trip` links | |
 | F8 | Dashboard: daily production counts + sensor trend charts | Manager | All | Date-range filter (Jalali) |
@@ -117,11 +121,13 @@ Packing (پکینگ/بسته‌بندی) — wagon discharged from kiln is unpac
 Tables owned by Django migrations (not the staging load):
 - `wagon` (wagon_id, plate_name UNIQUE)
 - `wagon_trip` (trip_id, wagon_id, started_at, completed_at, status) — spine
-- `setting_load` (trip_id FK, chamber_id FK, product_id, operator_id, shift, times, packages…)
-- `dryer_cycle` (trip_id FK, chamber_id, load/unload, readings…)
-- `kiln_push` (trip_id FK, push_seq, push_time, 18 sensor readings…)
-- `kiln_exit` (trip_id FK, entry_push_seq, exit_push_seq, discharged)
-- `packing_header` / `packing_wagon` (trip_id FK, grades, waste…)
+- `setting_event` (setting_event_id, date_jalali, shift, chamber_id FK, product_id FK, supervisor_id, operator_id, personnel_count, fingers_count, columns_count, dryer_waste, source_row) — **CHAMBER BATCH header** (mirrors staging `setting_event`)
+- `setting_wagon` (setting_wagon_id, setting_event_id FK, wagon_id FK, glaze_id FK, trip_id FK, start_time, end_time, packages, khesht_count, position_in_event) — 1..4 per event
+- `dryer_cycle` (dryer_cycle_id, chamber_id FK, load/unload datetime, operator_id, product_id, finger_count, readings…)
+- `kiln_push` (kiln_push_id, trip_id FK, wagon_id FK, push_seq UNIQUE, push_date, **push_time TIME**, shift, operator_id, product_id, push_duration) — **push_time captured exactly**
+- `kiln_reading` (kiln_reading_id, kiln_push_id FK, sensor_id FK, temperature_c) — 18 per push
+- `kiln_exit` (kiln_exit_id, trip_id FK, wagon_id FK, entry_push_seq, exit_push_seq, discharged) — **AUTO-UPDATED on each push** (exit_push_seq = entry+43); no manual form
+- `packing_header` (packing_header_id, pack_date, shift, controller_id FK, worker_type, worker_count, …) + `packing_wagon` (packing_wagon_id, packing_header_id FK, trip_id FK, wagon_id FK, product_id, **total_count, grade1_count, grade2_count, waste_count**, efficiency_pct) — **full grade payload**
 - `operator`, `chamber`, `product`, `glaze` (dimension masters)
 - `waiting_hall_reading` (reading_id, reading_time, temperature_c, sensor_id?, operator_id) — **placeholder, deferred**: ambient temp logging for the waiting hall, anticipated later (owner 2026-08-29). Mirrors `dryer_reading`/`kiln_reading` row-oriented pattern; NOT a column on `wagon_trip` (see M5_PROPOSED_SCHEMA §2.5).
 - `etl_trip_map` (map_id, source_module, source_row, trip_id?, wagon_id?, matched_at, note) — **ETL/historical layer only** (ADR-0008), created empty by `37_etl_trip_map.sql`; reconciles historical Excel rows (by `row_seq`) to clean-core `trip_id` post-build. NOT an app model.
@@ -132,9 +138,10 @@ Tables owned by Django migrations (not the staging load):
 ## 6. API contract (summary — full version in M5_API_CONTRACT.md)
 
 Base `/api/`, DRF, token auth.
-- `POST /api/setting/loads/`, `POST /api/dryer/cycles/`, `POST /api/kiln/pushes/`,
-  `POST /api/kiln/exits/`, `POST /api/packing/headers/`
-- `GET /api/dashboard/kiln-occupancy/` → `{in_tunnel, capacity, awaiting_discharge}`
+- `POST /api/dryer/cycles/` (F1), `POST /api/setting/events/` (F2, chamber batch)
+- `POST /api/kiln/pushes/` (F3; kiln exit auto-derived, no F4 endpoint)
+- `POST /api/packing/headers/` (F5, full grades)
+- `GET /api/dashboard/wagon-journey/?plate=` → `[setting, kiln_entry, kiln_exit, packing]` (F7)
 - `GET /api/dashboard/wagon-journey/?plate=<name>` → full trip timeline
 - `GET /api/dashboard/daily-counts/?from=&to=`
 

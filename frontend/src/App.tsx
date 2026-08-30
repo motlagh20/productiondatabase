@@ -20,21 +20,20 @@ import {
   LogOut,
   PackageCheck,
   Route as RouteIcon,
-  Truck,
 } from 'lucide-react'
 import { clearToken, getToken } from './api'
 
 const LoginPage = lazy(() => import('./pages/LoginPage'))
-const SettingLoadForm = lazy(() => import('./pages/SettingLoadForm'))
+const DryerCycleForm = lazy(() => import('./pages/DryerCycleForm'))
+const SettingEventForm = lazy(() => import('./pages/SettingEventForm'))
 const KilnPushForm = lazy(() => import('./pages/KilnPushForm'))
-const KilnExitForm = lazy(() => import('./pages/KilnExitForm'))
 const PackingForm = lazy(() => import('./pages/PackingForm'))
 const JourneyPage = lazy(() => import('./pages/JourneyPage'))
 
 const NAV = [
-  { to: '/setting', label: 'بارگیری ستینگ', icon: Boxes },
+  { to: '/dryer', label: 'خشک‌کن (F1)', icon: Flame },
+  { to: '/setting', label: 'بارگیری ستینگ (چمبر)', icon: Boxes },
   { to: '/kiln-push', label: 'پوش کوره', icon: Flame },
-  { to: '/kiln-exit', label: 'خروج از کوره', icon: Truck },
   { to: '/packing', label: 'بسته‌بندی', icon: PackageCheck },
   { to: '/journey', label: 'مسیر واگن', icon: RouteIcon },
 ]
@@ -104,10 +103,10 @@ export default function App() {
               <RequireAuth>
                 <Shell>
                   <Routes>
-                    <Route index element={<Navigate to="/setting" replace />} />
-                    <Route path="setting" element={<SettingLoadForm />} />
+                    <Route index element={<Navigate to="/dryer" replace />} />
+                    <Route path="dryer" element={<DryerCycleForm />} />
+                    <Route path="setting" element={<SettingEventForm />} />
                     <Route path="kiln-push" element={<KilnPushForm />} />
-                    <Route path="kiln-exit" element={<KilnExitForm />} />
                     <Route path="packing" element={<PackingForm />} />
                     <Route path="journey" element={<JourneyPage />} />
                     <Route path="*" element={<Navigate to="/setting" replace />} />

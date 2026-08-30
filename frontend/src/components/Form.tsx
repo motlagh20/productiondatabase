@@ -41,15 +41,18 @@ export function Input({
   value,
   onChange,
   type = 'text',
+  step,
 }: {
   value: string
   onChange: (v: string) => void
   type?: string
+  step?: string
 }) {
   return (
     <input
       className={inputClass}
       type={type}
+      step={step}
       value={value}
       onChange={(e) => onChange(e.target.value)}
     />

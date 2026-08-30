@@ -50,10 +50,10 @@ Production flow order (owner-specified): **Dryer → Setting → Waiting hall �
 
 Base `/api/`. Django REST Framework, token auth.
 
-- `POST /api/setting/events/` · `POST /api/setting/wagons/`
-- `POST /api/dryer/cycles/` · `POST /api/dryer/readings/`
-- `POST /api/kiln/pushes/` · `POST /api/kiln/wagons/` · `POST /api/kiln/exits/`
-- `POST /api/packing/headers/` · `POST /api/packing/wagons/`
+- `POST /api/dryer/cycles/`
+- `POST /api/setting/events/`
+- `POST /api/kiln/pushes/`  (kiln exit is auto-derived on push — no exit endpoint)
+- `POST /api/packing/headers/`
 - `GET /api/dashboard/kiln-occupancy/` → `{in_tunnel, capacity:44, awaiting_discharge}`
 - `GET /api/dashboard/wagon-journey/?wagon=<name>` → `[setting, kiln_entry, kiln_exit, packing]`
 - `GET /api/dashboard/daily-counts/?from=&to=`

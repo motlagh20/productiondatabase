@@ -6,7 +6,7 @@ double-checks the FK exists.
 """
 from rest_framework import serializers
 
-from .models import Chamber, Glaze, Operator, Product, Wagon
+from .models import Chamber, DryerCycle, Glaze, Operator, Product, Wagon
 
 
 class ReadingIn(serializers.Serializer):
@@ -15,28 +15,43 @@ class ReadingIn(serializers.Serializer):
                                               required=False, allow_null=True)
 
 
-class SettingLoadIn(serializers.Serializer):
-    plate = serializers.CharField(max_length=20)
-    chamber_code = serializers.CharField(max_length=20, required=False, allow_blank=True)
-    product_id = serializers.IntegerField(required=False, allow_null=True)
+class SettingWagonIn(serializers.Serializer):
+    wagon_id = serializers.IntegerField()
     glaze_id = serializers.IntegerField(required=False, allow_null=True)
-    operator_id = serializers.IntegerField(required=False, allow_null=True)
-    shift = serializers.IntegerField(required=False, allow_null=True)
-    date_jalali = serializers.CharField(max_length=10, required=False, allow_blank=True)
     start_time = serializers.TimeField(required=False, allow_null=True)
     end_time = serializers.TimeField(required=False, allow_null=True)
     packages = serializers.IntegerField(required=False, allow_null=True)
     khesht_count = serializers.IntegerField(required=False, allow_null=True)
-    client_token = serializers.UUIDField(required=False, allow_null=True)
 
-    def validate_plate(self, value):
-        if not Wagon.objects.filter(wagon_name=value).exists():
-            raise serializers.ValidationError(f'Unknown wagon plate: {value}')
+    def validate_wagon_id(self, value):
+        if not Wagon.objects.filter(pk=value).exists():
+            raise serializers.ValidationError(f'Unknown wagon id: {value}')
         return value
 
+
+class SettingEventIn(serializers.Serializer):
+    """CHAMBER-CENTRIC Setting batch: one chamber + 1..4 wagons fed from it."""
+    chamber_code = serializers.CharField(max_length=20)
+    date_jalali = serializers.CharField(max_length=10, required=False, allow_blank=True)
+    shift = serializers.IntegerField(required=False, allow_null=True)
+    product_id = serializers.IntegerField(required=False, allow_null=True)
+    supervisor_id = serializers.IntegerField(required=False, allow_null=True)
+    operator_id = serializers.IntegerField(required=False, allow_null=True)
+    personnel_count = serializers.IntegerField(required=False, allow_null=True)
+    fingers_count = serializers.IntegerField(required=False, allow_null=True)
+    columns_count = serializers.IntegerField(required=False, allow_null=True)
+    dryer_waste = serializers.DecimalField(max_digits=6, decimal_places=2, required=False, allow_null=True)
+    wagons = SettingWagonIn(many=True)
+    client_token = serializers.UUIDField(required=False, allow_null=True)
+
     def validate_chamber_code(self, value):
-        if value and not Chamber.objects.filter(chamber_code=value).exists():
+        if not Chamber.objects.filter(chamber_code=value).exists():
             raise serializers.ValidationError(f'Unknown chamber: {value}')
+        return value
+
+    def validate_wagons(self, value):
+        if not (1 <= len(value) <= 4):
+            raise serializers.ValidationError('A Setting batch needs 1..4 wagons.')
         return value
 
 
@@ -59,10 +74,10 @@ class KilnExitIn(serializers.Serializer):
 class PackingWagonIn(serializers.Serializer):
     trip_id = serializers.IntegerField()
     product_id = serializers.IntegerField(required=False, allow_null=True)
-    total_count = serializers.IntegerField(required=False, allow_null=True)
-    grade1_count = serializers.IntegerField(required=False, allow_null=True)
-    grade2_count = serializers.IntegerField(required=False, allow_null=True)
-    waste_count = serializers.IntegerField(required=False, allow_null=True)
+    total_count = serializers.IntegerField(required=True)
+    grade1_count = serializers.IntegerField(required=True)
+    grade2_count = serializers.IntegerField(required=True)
+    waste_count = serializers.IntegerField(required=True)
 
 
 class PackingHeaderIn(serializers.Serializer):
@@ -108,3 +123,29 @@ class ChamberOut(serializers.ModelSerializer):
     class Meta:
         model = Chamber
         fields = ('chamber_id', 'chamber_code', 'chamber_type')
+
+
+class DryerReadingIn(serializers.Serializer):
+    hour_offset = serializers.IntegerField(required=False, allow_null=True)
+    humidity_pct = serializers.DecimalField(max_digits=6, decimal_places=2,
+                                            required=False, allow_null=True)
+    temperature_c = serializers.DecimalField(max_digits=6, decimal_places=2,
+                                             required=False, allow_null=True)
+
+
+class DryerCycleIn(serializers.Serializer):
+    chamber_id = serializers.IntegerField()
+    load_date = serializers.CharField(max_length=10, required=False, allow_blank=True)
+    load_time = serializers.TimeField(required=False, allow_null=True)
+    unload_date = serializers.CharField(max_length=10, required=False, allow_blank=True)
+    unload_time = serializers.TimeField(required=False, allow_null=True)
+    load_operator_id = serializers.IntegerField(required=False, allow_null=True)
+    unload_operator_id = serializers.IntegerField(required=False, allow_null=True)
+    product_id = serializers.IntegerField(required=False, allow_null=True)
+    finger_count = serializers.IntegerField(required=False, allow_null=True)
+    readings = DryerReadingIn(many=True, required=False)
+
+    def validate_chamber_id(self, value):
+        if not Chamber.objects.filter(pk=value).exists():
+            raise serializers.ValidationError(f'Unknown chamber id: {value}')
+        return value

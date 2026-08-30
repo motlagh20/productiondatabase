@@ -116,7 +116,7 @@ export default function PackingForm() {
         </Field>
 
         {awaiting.length === 0 ? (
-          <Banner kind="error">لیست تخلیه خالی است. ابتدا یک واگن را از کوره خارج کنید.</Banner>
+          <Banner kind="error">لیست تخلیه خالی است. ابتدا یک واگن باید از کوره عبور کرده باشد (خروج اتوماتیک محاسبه می‌شود).</Banner>
         ) : (
           <div className="flex flex-col gap-2">
             <span className="text-sm font-medium text-slate-700">واگن‌های در انتظار تخلیه</span>

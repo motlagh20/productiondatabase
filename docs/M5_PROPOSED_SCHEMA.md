@@ -49,6 +49,11 @@
 - `wagon_trip(trip_id PK, wagon_id FK, started_at, completed_at, status, source_module)`.
 - Empty in staging; **the M5 app assigns `trip_id` at Setting load start** (owner-approved 2026-08-29).
 - `setting_wagon` / `kiln_wagon` / `packing_wagon` each carry `trip_id` FK.
+- **Kiln exit is DERIVED, not a form:** on every `kiln_push`, the app upserts `kiln_exit`
+  with `exit_push_seq = entry_push_seq + 43` (FIFO-44). A separate "confirm discharge" action
+  may later set `discharged=TRUE` at physical unload. No operator enters `exit_push_seq` manually.
+- **Setting is CHAMBER-CENTRIC:** `setting_event` = one chamber batch (date/shift/chamber/operator);
+  `setting_wagon` = 1–4 wagons loaded from THAT chamber. A batch is submitted as one unit.
 
 ### 2.5 Waiting hall (سالن انتظار) — temperature logging anticipated
 - **Current state:** the waiting hall is the interval between Setting load completion and Kiln push.

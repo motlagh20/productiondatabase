@@ -46,37 +46,57 @@ class WagonTrip(models.Model):
         return f'trip#{self.trip_id} ({self.wagon.wagon_name}, {self.status})'
 
 
-class SettingLoad(models.Model):
-    """One wagon load in Setting. Assigns the trip (F2). chamber = REFERENCE to
-    the source dryer chamber (1..40), not a Setting-owned chamber."""
-    setting_load_id = models.BigAutoField(primary_key=True)
-    trip = models.ForeignKey(WagonTrip, on_delete=models.PROTECT, db_column='trip_id',
-                             related_name='setting_loads')
-    wagon = models.ForeignKey(Wagon, on_delete=models.PROTECT, db_column='wagon_id')
-    chamber = models.ForeignKey(Chamber, on_delete=models.PROTECT, db_column='chamber_id',
-                                null=True, blank=True)
+class SettingEvent(models.Model):
+    """CHAMBER-CENTRIC Setting batch header (F2). One dryer chamber unloaded → its body
+    loaded onto 1..4 wagons until the chamber is empty. Mirrors staging `setting_event`."""
+    setting_event_id = models.BigAutoField(primary_key=True)
+    date_jalali = models.CharField(max_length=10, blank=True, default='')
+    shift = models.SmallIntegerField(null=True, blank=True)
+    chamber = models.ForeignKey(Chamber, on_delete=models.PROTECT, db_column='chamber_id')
     product = models.ForeignKey(Product, on_delete=models.PROTECT, db_column='product_id',
                                 null=True, blank=True)
-    glaze = models.ForeignKey(Glaze, on_delete=models.PROTECT, db_column='glaze_id',
-                              null=True, blank=True)
+    supervisor = models.ForeignKey(Operator, on_delete=models.PROTECT, db_column='supervisor_id',
+                                   null=True, blank=True, related_name='supervised_setting_events')
     operator = models.ForeignKey(Operator, on_delete=models.PROTECT, db_column='operator_id',
-                                 null=True, blank=True)
-    shift = models.SmallIntegerField(null=True, blank=True)
-    date_jalali = models.CharField(max_length=10, blank=True, default='')
-    start_time = models.TimeField(null=True, blank=True)
-    end_time = models.TimeField(null=True, blank=True)
-    packages = models.IntegerField(null=True, blank=True)
-    khesht_count = models.IntegerField(null=True, blank=True)
-    # Replay-safety: a retried POST with the same token returns the original row.
+                                 null=True, blank=True, related_name='setting_operator')
+    personnel_count = models.IntegerField(null=True, blank=True)
+    fingers_count = models.IntegerField(null=True, blank=True)
+    columns_count = models.IntegerField(null=True, blank=True)
+    dryer_waste = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    source_row = models.IntegerField(null=True, blank=True)
     client_token = models.UUIDField(null=True, blank=True, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ('setting_load_id',)
+        ordering = ('setting_event_id',)
+
+    def __str__(self):
+        return f'setting#{self.setting_event_id} (chamber {self.chamber_id}, {self.date_jalali})'
+
+
+class SettingWagon(models.Model):
+    """One wagon loaded within a Setting batch (F2). 1..4 per event. Assigns its own trip."""
+    setting_wagon_id = models.BigAutoField(primary_key=True)
+    setting_event = models.ForeignKey(SettingEvent, on_delete=models.PROTECT,
+                                      db_column='setting_event_id', related_name='wagons')
+    wagon = models.ForeignKey(Wagon, on_delete=models.PROTECT, db_column='wagon_id')
+    glaze = models.ForeignKey(Glaze, on_delete=models.PROTECT, db_column='glaze_id',
+                              null=True, blank=True)
+    trip = models.ForeignKey(WagonTrip, on_delete=models.PROTECT, db_column='trip_id',
+                             related_name='setting_wagons', null=True, blank=True)
+    start_time = models.TimeField(null=True, blank=True)
+    end_time = models.TimeField(null=True, blank=True)
+    packages = models.IntegerField(null=True, blank=True)
+    khesht_count = models.IntegerField(null=True, blank=True)
+    position_in_event = models.SmallIntegerField(default=1)
+
+    class Meta:
+        ordering = ('setting_event', 'position_in_event')
+        unique_together = (('setting_event', 'wagon', 'position_in_event'),)
 
 
 class KilnPush(models.Model):
-    """One kiln push = one wagon (F3). push_seq is the FIFO ordering key."""
+    """One kiln push = one wagon (F3). push_seq is the FIFO ordering key. push_time captured exactly."""
     kiln_push_id = models.BigAutoField(primary_key=True)
     trip = models.ForeignKey(WagonTrip, on_delete=models.PROTECT, db_column='trip_id',
                              related_name='kiln_pushes')
@@ -157,3 +177,41 @@ class PackingWagon(models.Model):
 
     class Meta:
         ordering = ('packing_wagon_id',)
+
+
+class DryerCycle(models.Model):
+    """F1 (FIRST production step): one dryer chamber load/unload cycle. The dried body
+    produced here is what Setting later loads onto wagons. Mirrors staging `dryer_cycle`."""
+    dryer_cycle_id = models.BigAutoField(primary_key=True)
+    chamber = models.ForeignKey(Chamber, on_delete=models.PROTECT, db_column='chamber_id',
+                               null=True, blank=True)
+    load_date = models.CharField(max_length=10, blank=True, default='')
+    load_time = models.TimeField(null=True, blank=True)
+    unload_date = models.CharField(max_length=10, blank=True, default='')
+    unload_time = models.TimeField(null=True, blank=True)
+    load_operator = models.ForeignKey(Operator, on_delete=models.PROTECT, db_column='load_operator_id',
+                                     null=True, blank=True, related_name='+')
+    unload_operator = models.ForeignKey(Operator, on_delete=models.PROTECT, db_column='unload_operator_id',
+                                       null=True, blank=True, related_name='+')
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, db_column='product_id',
+                               null=True, blank=True)
+    finger_count = models.IntegerField(null=True, blank=True)
+    chamber_no = models.IntegerField(null=True, blank=True)  # raw reference to dryer chamber 1..40
+    source_row = models.IntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('dryer_cycle_id',)
+
+
+class DryerReading(models.Model):
+    """Hourly humidity/temp reading for a dryer cycle (row-oriented, 22 readings per day)."""
+    dryer_reading_id = models.BigAutoField(primary_key=True)
+    dryer_cycle = models.ForeignKey(DryerCycle, on_delete=models.CASCADE, db_column='dryer_cycle_id',
+                                   related_name='readings')
+    hour_offset = models.IntegerField(null=True, blank=True)  # 0..21
+    humidity_pct = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    temperature_c = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+
+    class Meta:
+        unique_together = (('dryer_cycle', 'hour_offset'),)

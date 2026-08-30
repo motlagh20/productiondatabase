@@ -19,6 +19,7 @@ export default function KilnPushForm() {
   const [tripId, setTripId] = useState('')
   const [operatorId, setOperatorId] = useState('')
   const [shift, setShift] = useState('')
+  const [pushTime, setPushTime] = useState('')
 
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<string | null>(null)
@@ -47,6 +48,7 @@ export default function KilnPushForm() {
         push_date: todayJalali(),
         operator_id: operatorId ? Number(operatorId) : undefined,
         shift: shift ? Number(shift) : undefined,
+        push_time: pushTime || undefined,
         readings,
       })
       setResult(`هل ${data.push_seq} ثبت شد (تریپ ${data.trip_id} → ${data.status}).`)
@@ -78,6 +80,9 @@ export default function KilnPushForm() {
           </Field>
           <Field label="شیفت">
             <Select value={shift} onChange={setShift} options={SHIFTS.map((s) => ({ value: s.value, label: s.label }))} />
+          </Field>
+          <Field label="ساعت پوش (دقیق)">
+            <Input type="time" value={pushTime} onChange={setPushTime} />
           </Field>
         </div>
 

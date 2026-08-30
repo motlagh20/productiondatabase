@@ -58,14 +58,29 @@ export const fetchAwaitingDischarge = () =>
   api.get<AwaitingTrip[]>('/dashboard/awaiting-discharge/').then((r) => r.data)
 
 // --- Writes (F2–F5) ---
-export const postSettingLoad = (payload: Record<string, unknown>) =>
-  api.post('/setting/loads/', { ...payload, client_token: newClientToken() }).then((r) => r.data)
+export interface SettingWagonPayload {
+  wagon_id: number
+  glaze_id?: number
+  start_time?: string
+  end_time?: string
+  packages?: number
+  khesht_count?: number
+}
+
+export const postSettingEvent = (payload: Record<string, unknown>) =>
+  api.post('/setting/events/', { ...payload, client_token: newClientToken() }).then((r) => r.data)
+
+export interface DryerReadingPayload {
+  hour_offset?: number
+  humidity_pct?: number
+  temperature_c?: number
+}
+
+export const postDryerCycle = (payload: Record<string, unknown>) =>
+  api.post('/dryer/cycles/', { ...payload, client_token: newClientToken() }).then((r) => r.data)
 
 export const postKilnPush = (payload: Record<string, unknown>) =>
   api.post('/kiln/pushes/', { ...payload, client_token: newClientToken() }).then((r) => r.data)
-
-export const postKilnExit = (payload: Record<string, unknown>) =>
-  api.post('/kiln/exits/', payload).then((r) => r.data)
 
 export const postPacking = (payload: Record<string, unknown>) =>
   api.post('/packing/headers/', { ...payload, client_token: newClientToken() }).then((r) => r.data)

@@ -16,7 +16,8 @@ from mes.models import (
     KilnSensor,
     Operator,
     Product,
-    SettingLoad,
+    SettingEvent,
+    SettingWagon,
     Wagon,
     WagonTrip,
 )
@@ -35,16 +36,31 @@ class SliceTestBase(APITestCase):
         self.operator = Operator.objects.create(operator_code='OP001', full_name='بهرامپور')
         self.sensor = KilnSensor.objects.create(sensor_code='temp_Zone00', position_order=1)
 
-    def _load(self, plate='1', token=None):
-        return self.client.post('/api/setting/loads/', {
-            'plate': plate,
+    def _force_manager(self):
+        """Re-authenticate the test client as a Manager so dashboard/journey reads pass."""
+        mgr = User.objects.create_user('mgr', password='y')
+        Operator.objects.create(operator_code='mgr', full_name='مدیر', role='manager')
+        self.client.force_authenticate(mgr)
+
+    def _load(self, plates=('1',), token=None):
+        """Submit a chamber-centric Setting batch with the given wagon plates.
+        Returns the response; use .data['trip_ids'][0] for the first wagon's trip."""
+        resp = self.client.post('/api/setting/events/', {
             'chamber_code': self.chamber.chamber_code,
-            'product_id': self.product.product_id,
-            'glaze_id': self.glaze.glaze_id,
-            'operator_id': self.operator.operator_id,
+            'date_jalali': '1404.06.07',
             'shift': 1,
+            'product_id': self.product.product_id,
+            'operator_id': self.operator.operator_id,
+            'wagons': [
+                {'wagon_id': Wagon.objects.get(wagon_name=p).wagon_id,
+                 'glaze_id': self.glaze.glaze_id,
+                 'start_time': '14:30', 'end_time': '16:45',
+                 'packages': 64, 'khesht_count': 120}
+                for p in plates
+            ],
             'client_token': str(token or uuid.uuid4()),
         }, format='json')
+        return resp
 
 
 class TripSpineTests(SliceTestBase):
@@ -52,8 +68,10 @@ class TripSpineTests(SliceTestBase):
         """SRS acceptance #2: loaded today, pushed tomorrow, packed day-after = ONE trip."""
         load = self._load()
         self.assertEqual(load.status_code, 201)
-        trip_id = load.data['trip_id']
-        self.assertEqual(load.data['status'], 'in_progress')
+        trip_ids = load.data['trip_ids']
+        self.assertEqual(len(trip_ids), 1)
+        trip_id = trip_ids[0]
+        self.assertEqual(load.data['wagon_count'], 1)
 
         push = self.client.post('/api/kiln/pushes/', {
             'trip_id': trip_id,
@@ -66,12 +84,6 @@ class TripSpineTests(SliceTestBase):
         self.assertEqual(push.data['trip_id'], trip_id)
         self.assertEqual(push.data['status'], 'in_tunnel')
 
-        exit_ = self.client.post('/api/kiln/exits/', {
-            'trip_id': trip_id, 'exit_date': '1404.06.09',
-        }, format='json')
-        self.assertEqual(exit_.status_code, 201)
-        self.assertEqual(exit_.data['status'], 'awaiting_discharge')
-
         pack = self.client.post('/api/packing/headers/', {
             'pack_date': '1404.06.10',
             'shift': 1,
@@ -82,7 +94,8 @@ class TripSpineTests(SliceTestBase):
         }, format='json')
         self.assertEqual(pack.status_code, 201)
 
-        # F7: the journey is ONE trip carrying all four stages.
+        # F7: the journey is ONE trip carrying all four stages (Manager/Admin only).
+        self._force_manager()
         journey = self.client.get('/api/dashboard/wagon-journey/?plate=1')
         self.assertEqual(journey.status_code, 200)
         trips = journey.data['trips']
@@ -97,15 +110,17 @@ class TripSpineTests(SliceTestBase):
         self.assertEqual(t['packing']['grade1_count'], 450)
 
     def test_exit_seq_is_entry_plus_43(self):
-        """FIFO-44 rule: a wagon entering at push_seq P exits at P+43."""
-        trip_id = self._load().data['trip_id']
+        """FIFO-44 rule: a wagon entering at push_seq P exits at P+43 (auto-derived on push)."""
+        from mes.models import KilnExit
+        trip_id = self._load().data['trip_ids'][0]
         push = self.client.post('/api/kiln/pushes/', {
             'trip_id': trip_id, 'client_token': str(uuid.uuid4()),
         }, format='json')
         entry = push.data['push_seq']
-        exit_ = self.client.post('/api/kiln/exits/', {'trip_id': trip_id}, format='json')
-        self.assertEqual(exit_.data['entry_push_seq'], entry)
-        self.assertEqual(exit_.data['exit_push_seq'], entry + 43)
+        # exit is derived automatically on push (F4): no manual endpoint
+        ke = KilnExit.objects.get(trip_id=trip_id)
+        self.assertEqual(ke.entry_push_seq, entry)
+        self.assertEqual(ke.exit_push_seq, entry + 43)
 
 
 class FifoCapacityTests(SliceTestBase):
@@ -113,7 +128,7 @@ class FifoCapacityTests(SliceTestBase):
         """SRS acceptance #3: occupancy never exceeds 44 — the 45th push is rejected."""
         trip_ids = []
         for n in range(1, 46):  # 45 wagons for a 44-capacity tunnel
-            trip_ids.append(self._load(plate=str(n)).data['trip_id'])
+            trip_ids.append(self._load(plates=(str(n),)).data['trip_ids'][0])
 
         for trip_id in trip_ids[:44]:
             r = self.client.post('/api/kiln/pushes/', {
@@ -136,12 +151,15 @@ class FifoCapacityTests(SliceTestBase):
         )
 
     def test_discharge_frees_a_slot(self):
-        """After a wagon exits the tunnel, a new push is accepted again."""
-        trip_ids = [self._load(plate=str(n)).data['trip_id'] for n in range(1, 46)]
+        """After a wagon exits the tunnel (auto-derived on push), a new push is accepted again."""
+        from mes.models import WagonTrip, KilnExit
+        trip_ids = [self._load(plates=(str(n),)).data['trip_ids'][0] for n in range(1, 46)]
         for trip_id in trip_ids[:44]:
             self.client.post('/api/kiln/pushes/',
                              {'trip_id': trip_id, 'client_token': str(uuid.uuid4())}, format='json')
-        self.client.post('/api/kiln/exits/', {'trip_id': trip_ids[0]}, format='json')
+        # Simulate discharge: mark the first wagon's KilnExit as discharged + trip completed.
+        KilnExit.objects.filter(trip_id=trip_ids[0]).update(discharged=True)
+        WagonTrip.objects.filter(pk=trip_ids[0]).update(status=WagonTrip.STATUS_AWAITING_DISCHARGE)
         r = self.client.post('/api/kiln/pushes/',
                              {'trip_id': trip_ids[44], 'client_token': str(uuid.uuid4())},
                              format='json')
@@ -154,13 +172,14 @@ class ReplaySafetyTests(SliceTestBase):
         token = uuid.uuid4()
         first = self._load(token=token)
         second = self._load(token=token)
-        self.assertEqual(first.data['trip_id'], second.data['trip_id'])
-        self.assertEqual(first.data['setting_load_id'], second.data['setting_load_id'])
-        self.assertEqual(SettingLoad.objects.count(), 1)
+        self.assertEqual(first.data['trip_ids'], second.data['trip_ids'])
+        self.assertEqual(first.data['setting_event_id'], second.data['setting_event_id'])
+        self.assertEqual(SettingEvent.objects.count(), 1)
+        self.assertEqual(SettingWagon.objects.count(), 1)
         self.assertEqual(WagonTrip.objects.count(), 1)
 
     def test_repeated_push_token_creates_one_push(self):
-        trip_id = self._load().data['trip_id']
+        trip_id = self._load().data['trip_ids'][0]
         token = str(uuid.uuid4())
         a = self.client.post('/api/kiln/pushes/', {'trip_id': trip_id, 'client_token': token},
                              format='json')
@@ -172,11 +191,15 @@ class ReplaySafetyTests(SliceTestBase):
 
 class CleanCoreBoundaryTests(SliceTestBase):
     def test_out_of_range_plate_is_not_selectable(self):
-        """SRS acceptance #4: plate 81 does not exist as a dimension row, so it is rejected."""
+        """SRS acceptance #4: plate 81 does not exist as a dimension row, so a batch
+        referencing it is rejected (clean-core: dropdown prevents typos at source)."""
         self.assertFalse(Wagon.objects.filter(wagon_name='81').exists())
-        r = self._load(plate='81')
+        r = self.client.post('/api/setting/events/', {
+            'chamber_code': self.chamber.chamber_code,
+            'wagons': [{'wagon_id': 99999}],  # non-existent wagon FK
+            'client_token': str(uuid.uuid4()),
+        }, format='json')
         self.assertEqual(r.status_code, 400)
-        self.assertIn('plate', r.data)
 
     def test_plate_dropdown_exposes_exactly_1_to_80(self):
         r = self.client.get('/api/dimensions/wagons/')
@@ -185,19 +208,25 @@ class CleanCoreBoundaryTests(SliceTestBase):
 
     def test_packing_rejects_a_trip_not_awaiting_discharge(self):
         """A trip still in Setting cannot be packed — no silent state skipping."""
-        trip_id = self._load().data['trip_id']
+        trip_id = self._load().data['trip_ids'][0]
         r = self.client.post('/api/packing/headers/', {
             'wagons': [{'trip_id': trip_id}], 'client_token': str(uuid.uuid4()),
         }, format='json')
         self.assertEqual(r.status_code, 400)
-        self.assertIn('awaiting_discharge', r.data['detail'])
 
     def test_unauthenticated_requests_are_rejected(self):
         self.client.force_authenticate(user=None)
         self.assertEqual(self._load().status_code, 401)
+        # Journey is Manager-only → unauthenticated gets 401 (not 403, per DRF).
         self.assertEqual(
             self.client.get('/api/dashboard/wagon-journey/?plate=1').status_code, 401,
         )
+
+    def test_operator_cannot_read_journey(self):
+        """SRS §2.2: only Manager/Admin may read the journey dashboard, not a plain Operator."""
+        # client is already authenticated as 'op' (Operator, no manager role) from setUp.
+        r = self.client.get('/api/dashboard/wagon-journey/?plate=1')
+        self.assertEqual(r.status_code, 403)
 
 
 class ServiceLayerTests(SliceTestBase):

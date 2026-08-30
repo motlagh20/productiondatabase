@@ -5,20 +5,49 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from . import services
+from .exceptions import IsManager
 from .models import Chamber, Glaze, KilnSensor, Operator, Product, Wagon, WagonTrip
 from .serializers import (
     ChamberOut,
+    DryerCycleIn,
     GlazeOut,
     KilnExitIn,
     KilnPushIn,
     OperatorOut,
     PackingHeaderIn,
     ProductOut,
-    SettingLoadIn,
+    SettingEventIn,
+    SettingWagonIn,
     WagonOut,
 )
 
 WRITE_PERMISSION = IsAuthenticated
+
+
+@api_view(['POST'])
+@permission_classes([WRITE_PERMISSION])
+def dryer_cycle_create(request):
+    """F1 (FIRST step): register a dryer cycle + hourly humidity/temp readings."""
+    ser = DryerCycleIn(data=request.data)
+    ser.is_valid(raise_exception=True)
+    d = ser.validated_data
+    chamber = Chamber.objects.get(pk=d['chamber_id'])
+    cycle = services.create_dryer_cycle(
+        chamber=chamber,
+        readings=d.get('readings'),
+        load_date=d.get('load_date', ''),
+        load_time=d.get('load_time'),
+        unload_date=d.get('unload_date', ''),
+        unload_time=d.get('unload_time'),
+        load_operator_id=d.get('load_operator_id'),
+        unload_operator_id=d.get('unload_operator_id'),
+        product_id=d.get('product_id'),
+        finger_count=d.get('finger_count'),
+    )
+    return Response(
+        {'dryer_cycle_id': cycle.dryer_cycle_id, 'readings': cycle.readings.count()},
+        status=status.HTTP_201_CREATED,
+    )
 
 
 def _as_lookup_objects(serializer, validated, wagon=None, trip=None):
@@ -36,17 +65,34 @@ def _as_lookup_objects(serializer, validated, wagon=None, trip=None):
 
 @api_view(['POST'])
 @permission_classes([WRITE_PERMISSION])
-def setting_load_create(request):
-    """F2: register a wagon load → creates the trip (system-assigned), status in_progress."""
-    ser = SettingLoadIn(data=request.data)
+def setting_event_create(request):
+    """F2 (CHAMBER-CENTRIC): register a Setting batch (one chamber + 1..4 wagons)."""
+    ser = SettingEventIn(data=request.data)
     ser.is_valid(raise_exception=True)
-    kwargs = _as_lookup_objects(ser, ser.validated_data)
-    client_token = kwargs.pop('client_token', None)
-    load = services.start_setting_load(wagon=kwargs.pop('wagon'), client_token=client_token, **kwargs)
+    data = dict(ser.validated_data)
+    chamber = Chamber.objects.get(chamber_code=data.pop('chamber_code'))
+    wagons = data.pop('wagons')
+    client_token = data.pop('client_token', None)
+    # resolve wagon FKs inside each wagon payload
+    wagon_objs = []
+    for w in wagons:
+        w['wagon'] = Wagon.objects.get(pk=w.pop('wagon_id'))
+        if w.get('glaze_id'):
+            w['glaze'] = Glaze.objects.get(pk=w.pop('glaze_id'))
+        wagon_objs.append(w)
+    if data.get('product_id'):
+        data['product'] = Product.objects.get(pk=data.pop('product_id'))
+    if data.get('supervisor_id'):
+        data['supervisor'] = Operator.objects.get(pk=data.pop('supervisor_id'))
+    if data.get('operator_id'):
+        data['operator'] = Operator.objects.get(pk=data.pop('operator_id'))
+    event = services.create_setting_batch(chamber=chamber, wagons=wagon_objs,
+                                           client_token=client_token, **data)
     return Response({
-        'trip_id': load.trip_id,
-        'setting_load_id': load.setting_load_id,
-        'status': load.trip.status,
+        'setting_event_id': event.setting_event_id,
+        'chamber': event.chamber_id,
+        'wagon_count': event.wagons.count(),
+        'trip_ids': [w.trip_id for w in event.wagons.all()],
     }, status=status.HTTP_201_CREATED)
 
 
@@ -108,16 +154,16 @@ def packing_header_create(request):
 
 
 @api_view(['GET'])
-@permission_classes([WRITE_PERMISSION])
+@permission_classes([IsManager])
 def wagon_journey(request):
-    """F7: full trip timeline for a wagon plate name."""
+    """F7: full trip timeline for a wagon plate name. Manager/Admin only (SRS §2.2)."""
     plate = request.query_params.get('plate')
     if not plate:
         return Response({'detail': 'plate query param is required.'}, status=400)
     return Response({'plate': plate, 'trips': services.wagon_journey(plate=plate)})
 
 
-# --- Dimension dropdowns (form options) ---
+# --- Dimension dropdowns (form options — any authenticated user) ---
 @api_view(['GET'])
 @permission_classes([WRITE_PERMISSION])
 def operator_list(request):
@@ -159,8 +205,9 @@ def sensor_list(request):
 
 
 @api_view(['GET'])
-@permission_classes([WRITE_PERMISSION])
+@permission_classes([IsManager])
 def awaiting_discharge_list(request):
+    """Trips ready to pack — feeds the Packing form. Manager/Admin only (dashboard data)."""
     trips = WagonTrip.objects.filter(status=WagonTrip.STATUS_AWAITING_DISCHARGE).order_by('trip_id')
     return Response([
         {'trip_id': t.trip_id, 'plate': t.wagon.wagon_name} for t in trips
