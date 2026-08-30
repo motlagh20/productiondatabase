@@ -1,7 +1,7 @@
 """API views for the vertical slice (F2–F5 write + F7 journey read)."""
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from . import services
@@ -21,6 +21,9 @@ from .serializers import (
 )
 
 WRITE_PERMISSION = IsAuthenticated
+# Reference/dimension dropdowns are public: static form options, not sensitive,
+# and must load before login so forms render. Writes + manager dashboards stay auth'd.
+PUBLIC = AllowAny
 
 
 @api_view(['POST'])
@@ -166,39 +169,39 @@ def wagon_journey(request):
     return Response({'plate': plate, 'trips': services.wagon_journey(plate=plate)})
 
 
-# --- Dimension dropdowns (form options — any authenticated user) ---
+# --- Dimension dropdowns (public form options — no auth required) ---
 @api_view(['GET'])
-@permission_classes([WRITE_PERMISSION])
+@permission_classes([PUBLIC])
 def operator_list(request):
     return Response(OperatorOut(Operator.objects.all(), many=True).data)
 
 
 @api_view(['GET'])
-@permission_classes([WRITE_PERMISSION])
+@permission_classes([PUBLIC])
 def product_list(request):
     return Response(ProductOut(Product.objects.all(), many=True).data)
 
 
 @api_view(['GET'])
-@permission_classes([WRITE_PERMISSION])
+@permission_classes([PUBLIC])
 def glaze_list(request):
     return Response(GlazeOut(Glaze.objects.all(), many=True).data)
 
 
 @api_view(['GET'])
-@permission_classes([WRITE_PERMISSION])
+@permission_classes([PUBLIC])
 def wagon_list(request):
     return Response(WagonOut(Wagon.objects.all(), many=True).data)
 
 
 @api_view(['GET'])
-@permission_classes([WRITE_PERMISSION])
+@permission_classes([PUBLIC])
 def chamber_list(request):
     return Response(ChamberOut(Chamber.objects.all(), many=True).data)
 
 
 @api_view(['GET'])
-@permission_classes([WRITE_PERMISSION])
+@permission_classes([PUBLIC])
 def sensor_list(request):
     sensors = KilnSensor.objects.all()
     return Response([
@@ -208,9 +211,9 @@ def sensor_list(request):
 
 
 @api_view(['GET'])
-@permission_classes([WRITE_PERMISSION])
+@permission_classes([PUBLIC])
 def active_wagons_list(request):
-    """Wagons with an active (setting/waiting-hall) trip — the ones eligible for a kiln push."""
+    """Wagons with an active (setting/waiting-hall) trip — feeds the Kiln push form."""
     trips = WagonTrip.objects.filter(
         status__in=[WagonTrip.STATUS_IN_PROGRESS, WagonTrip.STATUS_WAITING_HALL]
     ).order_by('trip_id')
