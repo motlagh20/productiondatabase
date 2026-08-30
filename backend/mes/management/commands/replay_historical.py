@@ -17,6 +17,8 @@ from django.db import connections, transaction
 from mes import services
 from mes.models import (
     Chamber,
+    DryerCycle,
+    DryerReading,
     EtlReject,
     Glaze,
     Operator,
@@ -52,8 +54,58 @@ class Command(BaseCommand):
         products = {p.product_id: p for p in Product.objects.all()}
         glazes = {g.glaze_id: g for g in Glaze.objects.all()}
 
-        stats = {'setting': 0, 'setting_reject': 0, 'kiln': 0, 'kiln_reject': 0,
+        stats = {'dryer': 0, 'dryer_reject': 0, 'setting': 0, 'setting_reject': 0, 'kiln': 0, 'kiln_reject': 0,
                  'packing': 0, 'packing_reject': 0}
+
+        # ---- 0) DRYER (F1, first production step): cycle + hourly readings ----
+        # Reuses create_dryer_cycle so the F1 path is exercised like every other module.
+        d_cycles = _rows(
+            'SELECT dryer_cycle_id, load_date, load_time, unload_date, unload_time, '
+            'load_operator_id, unload_operator_id, product_id, finger_count, chamber_id '
+            'FROM dryer_cycle ORDER BY dryer_cycle_id'
+        )
+        d_readings = _rows(
+            'SELECT dryer_cycle_id, hour_offset, humidity_pct, temperature_c '
+            'FROM dryer_reading ORDER BY dryer_cycle_id, hour_offset'
+        )
+        d_read_by_cycle = {}
+        for r in d_readings:
+            d_read_by_cycle.setdefault(int(r['dryer_cycle_id']), []).append(r)
+
+        for dc in d_cycles:
+            chamber = chambers.get(dc['chamber_id'])
+            if chamber is None:
+                EtlReject.objects.create(
+                    module='dryer', source_row=dc['dryer_cycle_id'],
+                    reason=f"missing chamber_id={dc['chamber_id']}", raw=str(dc))
+                stats['dryer_reject'] += 1
+                continue
+            readings = []
+            for dr in d_read_by_cycle.get(int(dc['dryer_cycle_id']), []):
+                readings.append({
+                    'hour_offset': dr['hour_offset'],
+                    'humidity_pct': dr['humidity_pct'],
+                    'temperature_c': dr['temperature_c'],
+                })
+            try:
+                services.create_dryer_cycle(
+                    chamber=chamber,
+                    readings=readings,
+                    load_date=dc['load_date'] or '',
+                    load_time=dc['load_time'],
+                    unload_date=dc['unload_date'] or '',
+                    unload_time=dc['unload_time'],
+                    load_operator=operators.get(dc['load_operator_id']),
+                    unload_operator=operators.get(dc['unload_operator_id']),
+                    product=products.get(dc['product_id']),
+                    finger_count=dc['finger_count'] or 0,
+                )
+                stats['dryer'] += 1
+            except Exception as e:  # noqa: BLE001
+                EtlReject.objects.create(
+                    module='dryer', source_row=dc['dryer_cycle_id'],
+                    reason=f"service error: {e}", raw=str(dc))
+                stats['dryer_reject'] += 1
 
         # ---- 1) SETTING: event + wagons + trip ----
         # Pre-load ALL setting_wagon rows once (avoids a SQL round-trip per event).
@@ -306,7 +358,8 @@ class Command(BaseCommand):
                     stats['packing_reject'] += 1
 
         self.stdout.write(self.style.SUCCESS(
-            f"Replay complete: setting={stats['setting']} (reject {stats['setting_reject']}), "
+            f"Replay complete: dryer={stats['dryer']} (reject {stats['dryer_reject']}), "
+            f"setting={stats['setting']} (reject {stats['setting_reject']}), "
             f"kiln_pushes={stats['kiln']} (reject {stats['kiln_reject']}), "
             f"packing={stats['packing']} (reject {stats['packing_reject']})"
         ))

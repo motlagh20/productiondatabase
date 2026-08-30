@@ -119,16 +119,24 @@ PR [#1](https://github.com/motlagh20/productiondatabase/pull/1) (`m5-slice-build
   idempotent `update_or_create`. Wagon filter enforces clean-core 1..80 range at the seed
   boundary.
 - **Historical replay (ETL layer, ADR-0008):** `replay_historical` management command reads
-  staging (`setting_event`+`setting_wagon` → `kiln_push`+`kiln_wagon` → `packing_header`+`packing_wagon`)
-  and re-creates the full trip spine in the app via the **real domain services**
-  (`create_setting_batch` / `push_wagon` / `register_packing`) — so FIFO-44, the 44-capacity
-  ceiling, and the journey state machine are exercised at real volume (~20k setting events,
-  ~38k pushes, ~93k packing wagons). Dirty history is **not** admitted: any row whose
-  `wagon_no` is NULL or outside 1..80, or whose chamber/operator FK is missing, is written to
-  the app's `EtlReject` table (module, source_row, reason, raw) for human adjudication against
-  the paper ledgers. Replay is idempotent via deterministic UUID `client_token`s derived from
-  staging source keys. This is the missing "hard 30%": the app is now load-tested against real
-  historical shape, not just synthetic single-trip tests.
+  staging (`dryer_cycle`+`dryer_reading` → `setting_event`+`setting_wagon` → `kiln_push`+`kiln_wagon`
+  → `packing_header`+`packing_wagon`) and re-creates the full trip spine in the app via the
+  **real domain services** (`create_dryer_cycle` / `create_setting_batch` / `push_wagon` /
+  `register_packing`) — so F1→F5, FIFO-44, the 44-capacity ceiling, and the journey state
+  machine are exercised at real volume (18,558 dryer cycles; ~20k setting events; ~38k pushes;
+  ~93k packing wagons). Dirty history is **not** admitted: any row whose `wagon_no` is NULL or
+  outside 1..80, or whose chamber/operator FK is missing, is written to the app's `EtlReject`
+  table (module, source_row, reason, raw) for human adjudication against the paper ledgers.
+  Replay is idempotent via deterministic UUID `client_token`s derived from staging source keys.
+  This is the missing "hard 30%": the app is now load-tested against real historical shape,
+  not just synthetic single-trip tests.
+- **Demo slice (`make_demo_slice`):** because the historical snapshot stops at ~1404, every trip
+  is `completed` and the live dashboards (in-tunnel wagons, awaiting-discharge, occupancy) are
+  empty. This command copies a genuinely-populated historical window (1399.03.08..1399.06.08,
+  which has data in ALL modules) and rebases it to **1405.03.08..1405.06.08** (near "today"
+  1405.06.08), leaving the tail in a live (`in_progress` / `in_tunnel` / `awaiting_discharge`)
+  state so management dashboards show realistic near-current activity. Replay-safe via
+  `demo:`-namespaced client_tokens; `--clear` removes the slice. Original archive untouched.
 - **ETL verified result (full replay of all historical staging):**
   - setting: **11,120** events loaded, 13,245 rejected (dirty `wagon_no` NULL/>80 — expected).
   - kiln: **31,301** pushes loaded, 7,525 rejected (orphan pushes for wagons whose setting
