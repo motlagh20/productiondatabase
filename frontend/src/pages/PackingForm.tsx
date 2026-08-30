@@ -11,6 +11,7 @@ import {
   type Product,
 } from '../api'
 import { Banner, Card, Field, Select, SubmitButton } from '../components/Form'
+import JalaliDatePicker from '../components/JalaliDatePicker'
 import { toJalali } from '../jalali'
 
 interface WagonRow {
@@ -28,6 +29,7 @@ export default function PackingForm() {
   const [operators, setOperators] = useState<Operator[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [controllerId, setControllerId] = useState('')
+  const [packDate, setPackDate] = useState(toJalali(new Date()))
   const [selected, setSelected] = useState<Record<number, WagonRow>>({})
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<string | null>(null)
@@ -79,7 +81,7 @@ export default function PackingForm() {
     setBusy(true)
     try {
       const payload = {
-        pack_date: toJalali(new Date()),
+        pack_date: packDate,
         controller_id: controllerId ? Number(controllerId) : null,
         wagons: rows.map((r) => ({
           trip_id: r.trip_id,
@@ -113,6 +115,9 @@ export default function PackingForm() {
             onChange={setControllerId}
             options={operators.map((o) => ({ value: o.operator_id, label: o.full_name || o.operator_code }))}
           />
+        </Field>
+        <Field label="تاریخ بسته‌بندی">
+          <JalaliDatePicker value={packDate} onChange={setPackDate} placeholder="انتخاب تاریخ" />
         </Field>
 
         {awaiting.length === 0 ? (

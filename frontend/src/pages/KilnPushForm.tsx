@@ -9,6 +9,7 @@ import {
   type Sensor,
 } from '../api'
 import { Banner, Card, Field, Input, Select, SubmitButton } from '../components/Form'
+import JalaliDatePicker from '../components/JalaliDatePicker'
 import { SHIFTS, todayJalali } from '../jalali'
 
 export default function KilnPushForm() {
@@ -19,6 +20,7 @@ export default function KilnPushForm() {
   const [tripId, setTripId] = useState('')
   const [operatorId, setOperatorId] = useState('')
   const [shift, setShift] = useState('')
+  const [pushDate, setPushDate] = useState(todayJalali())
   const [pushTime, setPushTime] = useState('')
 
   const [busy, setBusy] = useState(false)
@@ -45,7 +47,7 @@ export default function KilnPushForm() {
         .map((s) => ({ sensor_code: s.sensor_code, temperature_c: temps[s.sensor_code] }))
       const data = await postKilnPush({
         trip_id: Number(tripId),
-        push_date: todayJalali(),
+        push_date: pushDate,
         operator_id: operatorId ? Number(operatorId) : undefined,
         shift: shift ? Number(shift) : undefined,
         push_time: pushTime || undefined,
@@ -80,6 +82,9 @@ export default function KilnPushForm() {
           </Field>
           <Field label="شیفت">
             <Select value={shift} onChange={setShift} options={SHIFTS.map((s) => ({ value: s.value, label: s.label }))} />
+          </Field>
+          <Field label="تاریخ پوش">
+            <JalaliDatePicker value={pushDate} onChange={setPushDate} placeholder="انتخاب تاریخ" />
           </Field>
           <Field label="ساعت پوش (دقیق)">
             <Input type="time" value={pushTime} onChange={setPushTime} />

@@ -15,6 +15,7 @@ import {
   type Wagon,
 } from '../api'
 import { Banner, Card, Field, Input, Select, SubmitButton } from '../components/Form'
+import JalaliDatePicker from '../components/JalaliDatePicker'
 import { SHIFTS, todayJalali } from '../jalali'
 
 interface WagonRow {
@@ -43,6 +44,7 @@ export default function SettingEventForm() {
   const [operatorId, setOperatorId] = useState('')
   const [productId, setProductId] = useState('')
   const [shift, setShift] = useState('')
+  const [dateJalali, setDateJalali] = useState(todayJalali())
   const [rows, setRows] = useState<WagonRow[]>([emptyRow()])
 
   const [busy, setBusy] = useState(false)
@@ -93,7 +95,7 @@ export default function SettingEventForm() {
         operator_id: operatorId ? Number(operatorId) : undefined,
         product_id: productId ? Number(productId) : undefined,
         shift: shift ? Number(shift) : undefined,
-        date_jalali: todayJalali(),
+        date_jalali: dateJalali,
         wagons: wagonPayload,
       })
       const ids = (data.trip_ids || []).join(', ')
@@ -135,6 +137,9 @@ export default function SettingEventForm() {
         </Field>
         <Field label="شیفت">
           <Select value={shift} onChange={setShift} options={SHIFTS.map((s) => ({ value: s.value, label: s.label }))} />
+        </Field>
+        <Field label="تاریخ ستینگ">
+          <JalaliDatePicker value={dateJalali} onChange={setDateJalali} placeholder="انتخاب تاریخ" />
         </Field>
 
         <div className="sm:col-span-2">

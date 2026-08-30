@@ -11,6 +11,7 @@ import {
   type Product,
 } from '../api'
 import { Banner, Card, Field, Input, Select, SubmitButton } from '../components/Form'
+import JalaliDatePicker from '../components/JalaliDatePicker'
 import { todayJalali } from '../jalali'
 
 interface ReadingRow {
@@ -107,13 +108,13 @@ export default function DryerCycleForm() {
           />
         </Field>
         <Field label="تاریخ بارگیری">
-          <Input value={loadDate} onChange={setLoadDate} />
+          <JalaliDatePicker value={loadDate} onChange={setLoadDate} placeholder="انتخاب تاریخ بارگیری" />
         </Field>
         <Field label="ساعت بارگیری">
           <Input type="time" value={loadTime} onChange={setLoadTime} />
         </Field>
         <Field label="تاریخ تخلیه">
-          <Input value={unloadDate} onChange={setUnloadDate} />
+          <JalaliDatePicker value={unloadDate} onChange={setUnloadDate} placeholder="انتخاب تاریخ تخلیه" />
         </Field>
         <Field label="ساعت تخلیه">
           <Input type="time" value={unloadTime} onChange={setUnloadTime} />
