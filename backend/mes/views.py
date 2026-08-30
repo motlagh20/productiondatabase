@@ -191,13 +191,35 @@ def glaze_list(request):
 @api_view(['GET'])
 @permission_classes([PUBLIC])
 def wagon_list(request):
-    return Response(WagonOut(Wagon.objects.all(), many=True).data)
+    """Wagon dropdown. ?free=true -> only wagons with no active trip (eligible for
+    a new Setting load). Default returns all."""
+    qs = Wagon.objects.all()
+    if request.query_params.get('free') == 'true':
+        qs = qs.exclude(
+            wagontrip__status__in=[
+                WagonTrip.STATUS_IN_PROGRESS, WagonTrip.STATUS_BODY_DRIED,
+                WagonTrip.STATUS_WAITING_HALL, WagonTrip.STATUS_IN_TUNNEL,
+                WagonTrip.STATUS_AWAITING_DISCHARGE,
+            ]
+        ).distinct()
+    return Response(WagonOut(qs, many=True).data)
 
 
 @api_view(['GET'])
 @permission_classes([PUBLIC])
 def chamber_list(request):
-    return Response(ChamberOut(Chamber.objects.all(), many=True).data)
+    """Chamber dropdown. ?occupied=true -> only chambers with an active (non-completed)
+    Setting trip, i.e. currently loaded. Default returns all."""
+    qs = Chamber.objects.all()
+    if request.query_params.get('occupied') == 'true':
+        qs = qs.filter(
+            settingevent__wagons__trip__status__in=[
+                WagonTrip.STATUS_IN_PROGRESS, WagonTrip.STATUS_BODY_DRIED,
+                WagonTrip.STATUS_WAITING_HALL, WagonTrip.STATUS_IN_TUNNEL,
+                WagonTrip.STATUS_AWAITING_DISCHARGE,
+            ]
+        ).distinct()
+    return Response(ChamberOut(qs, many=True).data)
 
 
 @api_view(['GET'])

@@ -52,7 +52,7 @@ export default function SettingEventForm() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    Promise.all([fetchWagons(), fetchChambers(), fetchOperators(), fetchProducts(), fetchGlazes()])
+    Promise.all([fetchWagons(true), fetchChambers(true), fetchOperators(), fetchProducts(), fetchGlazes()])
       .then(([w, c, o, p, g]) => {
         setWagons(w)
         setChambers(c)

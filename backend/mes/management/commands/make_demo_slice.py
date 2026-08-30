@@ -17,6 +17,7 @@ Usage:
 """
 import uuid
 
+import django
 from django.core.management.base import BaseCommand
 from django.db import connections, transaction
 
@@ -256,18 +257,38 @@ class Command(BaseCommand):
             except Exception:  # noqa: BLE001
                 pass
 
+        # ---- COMPLETION SWEEP: free wagons for the Setting form ----
+        # Demo trips are created in_progress; left as-is, every wagon ends up busy and
+        # the Setting dropdown would be empty. Complete all demo trips except a small
+        # live edge so most wagons are free again (real factory flow: a wagon is reused
+        # after it finishes packing).
+        demo_tokens = set(_token(s) for s in range(0, 400000))
+        demo_setting_ids = list(
+            SettingEvent.objects.filter(client_token__in=demo_tokens).values_list('setting_event_id', flat=True)
+        )
+        demo_trips = WagonTrip.objects.filter(setting_wagons__setting_event_id__in=demo_setting_ids).distinct()
+        live_edge = set(demo_trips.order_by('-trip_id')[:35].values_list('trip_id', flat=True))
+        # keep the live edge (in_progress / in_tunnel); complete the rest
+        for t in demo_trips.exclude(trip_id__in=live_edge):
+            if t.status in (WagonTrip.STATUS_AWAITING_DISCHARGE, WagonTrip.STATUS_IN_TUNNEL,
+                            WagonTrip.STATUS_WAITING_HALL, WagonTrip.STATUS_IN_PROGRESS,
+                            WagonTrip.STATUS_BODY_DRIED):
+                t.status = WagonTrip.STATUS_COMPLETED
+                t.completed_at = django.utils.timezone.now()
+                t.save(update_fields=['status', 'completed_at'])
+
         self.stdout.write(self.style.SUCCESS(
             f"Demo slice built: window {SRC_LO}..{SRC_HI} rebased to {DEMO_YEAR}. "
-            f"Live edge = last 3 settings in_progress, last 15 kiln pushes in_tunnel."
+            f"Live edge = ~35 newest trips kept active (in_progress/in_tunnel); rest completed so wagons free up."
         ))
 
     def _clear(self):
         # Demo rows carry a `demo:`-namespaced client_token. Recompute the same token
         # set used at build time and delete by it (SettingEvent/KilnPush/PackingHeader/
         # DryerCycle cascade to their trips and child rows).
-        import django
         from mes.models import (
-            DryerCycle, KilnPush, PackingHeader, SettingEvent, WagonTrip, KilnExit,
+            DryerCycle, KilnPush, KilnExit, PackingHeader, PackingWagon,
+            SettingEvent, SettingWagon, WagonTrip,
         )
         demo_tokens = set()
         # Mirror the seed ranges used in handle().
@@ -278,8 +299,13 @@ class Command(BaseCommand):
                 SettingEvent.objects.filter(client_token__in=demo_tokens).values_list('setting_event_id', flat=True)
             )
             trips = WagonTrip.objects.filter(setting_wagons__setting_event_id__in=setting_ids).distinct()
+            # Delete protected-FK children explicitly before the trips.
+            KilnExit.objects.filter(trip__in=trips).delete()
+            SettingWagon.objects.filter(trip__in=trips).delete()
             KilnPush.objects.filter(trip__in=trips).delete()
-            PackingHeader.objects.filter(packing_wagons__trip__in=trips).delete()
-            DryerCycle.objects.filter(client_token__in=demo_tokens).delete()
+            PackingWagon.objects.filter(trip__in=trips).delete()
+            PackingHeader.objects.filter(wagons__trip__in=trips).delete()
+            # Dryer cycles in the demo are rebased to 1405; clear those by date prefix.
+            DryerCycle.objects.filter(load_date__startswith='1405').delete()
             trips.delete()
         self.stdout.write(self.style.WARNING('Demo slice cleared.'))
