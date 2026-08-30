@@ -24,6 +24,17 @@ reference implementation; the architecture must stay multi-factory configurable 
   `glazes` (dropped 2026-08-29 → use `glaze`). Do NOT reference these in app code.
 - Staging is the historical-data source; Django migrations own the *application* schema. M5 leaves
   the staging load in place and defines the read/write boundary.
+
+## 2b. App DB separation — TODO before production
+
+- **Current dev state:** the app schema (`mes_app`) lives on the **same PostgreSQL container** as
+  staging (`localhost:5433`, db `postgres`). This is schema-level separation only, acceptable for the
+  dev slice. It is **NOT** a production boundary.
+- **Required before production:** `mes_app` must run on a **dedicated DB / container** (separate
+  credentials, separate port) so a staging reload or incident can never touch live app data.
+  `config/settings.py` `DB_PORT` must point at that dedicated instance, not `5433`.
+- Port `5432` = the FROZEN reference app (PostgREST/SQLite). Never touch (ADR-0002).
+- The `staging` connection alias (read-only) stays pointed at `5433` for dimension seeding only.
 - **Excel files are analysis/history artifacts only (owner 2026-08-29).** The 4 `xls/consolidated/All/*.xlsx`
   workbooks are used to *derive requirements* and *access process history* — they must **never** shape
   the app's core schema or business logic. All old data is loadable (via the ETL layer, ADR-0008), but
