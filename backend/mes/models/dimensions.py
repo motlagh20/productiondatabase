@@ -7,6 +7,10 @@ typos at source — clean-core rule, M5_PROPOSED_SCHEMA §3).
 """
 from django.db import models
 
+# Avoid circular import: reference spine models by string label.
+DRYER_CYCLE = 'mes.DryerCycle'
+SETTING_EVENT = 'mes.SettingEvent'
+
 
 class Operator(models.Model):
     operator_id = models.BigAutoField(primary_key=True)
@@ -91,3 +95,29 @@ class KilnSensor(models.Model):
 
     def __str__(self):
         return self.sensor_code
+
+
+class ChamberState(models.Model):
+    """Point-in-time control table: is a drying chamber currently LOADED (full)?
+
+    A chamber goes empty -> loaded when its dryer cycle is registered, and back to
+    empty when its loaded body is discharged into a Setting batch. Because a chamber
+    stays loaded for 1-2+ days (drying time), the live state is NOT derivable from a
+    whole-history aggregate — it tracks the LAST event per chamber. This table is the
+    authoritative 'which chambers are full right now' source for the Setting form.
+    """
+    chamber = models.OneToOneField(Chamber, on_delete=models.PROTECT, primary_key=True,
+                                   related_name='state')
+    is_loaded = models.BooleanField(default=False)
+    current_dryer_cycle = models.ForeignKey(DRYER_CYCLE, on_delete=models.SET_NULL,
+                                            null=True, blank=True, related_name='+')
+    current_setting_event = models.ForeignKey(SETTING_EVENT, on_delete=models.SET_NULL,
+                                              null=True, blank=True, related_name='+')
+    loaded_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ('chamber',)
+
+    def __str__(self):
+        return f'{self.chamber.chamber_code}: {"LOADED" if self.is_loaded else "empty"}'

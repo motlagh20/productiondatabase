@@ -7,6 +7,7 @@ no Excel-era typo tolerance (ADR-0008).
 from django.db import transaction
 
 from .models import (
+    ChamberState,
     DryerCycle,
     DryerReading,
     KilnExit,
@@ -21,6 +22,27 @@ from .models import (
 )
 
 KILN_CAPACITY = 44  # fixed tunnel capacity; wagon entering at push_seq P exits at P+43.
+
+
+def _sync_chamber_loaded(chamber, *, loaded, dryer_cycle=None, setting_event=None):
+    """Keep ChamberState in step with the last event touching that chamber.
+
+    loaded=True  -> dryer cycle registered (chamber now full of wet body)
+    loaded=False -> setting batch discharged the chamber (now empty, ready for next)
+    """
+    from django.utils import timezone
+    state, _ = ChamberState.objects.get_or_create(chamber=chamber)
+    state.is_loaded = loaded
+    if loaded:
+        state.current_dryer_cycle = dryer_cycle
+        state.current_setting_event = None
+        if state.loaded_at is None:
+            state.loaded_at = timezone.now()
+    else:
+        state.current_dryer_cycle = None
+        state.current_setting_event = setting_event
+        state.loaded_at = None
+    state.save()
 
 
 class RuleViolation(Exception):
@@ -48,6 +70,7 @@ def create_setting_batch(*, chamber, wagons, client_token=None, **event_fields):
         SettingWagon.objects.create(
             setting_event=event, wagon=wagon, trip=trip, position_in_event=i, **w,
         )
+    _sync_chamber_loaded(chamber, loaded=False, setting_event=event)
     return event
 
 
@@ -64,6 +87,7 @@ def create_dryer_cycle(*, chamber, readings=None, **cycle_fields):
             humidity_pct=r.get('humidity_pct'),
             temperature_c=r.get('temperature_c'),
         )
+    _sync_chamber_loaded(chamber, loaded=True, dryer_cycle=cycle)
     return cycle
 
 

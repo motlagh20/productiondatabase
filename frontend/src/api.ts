@@ -48,10 +48,10 @@ export interface Glaze { glaze_id: number; glaze_code: string; glaze_name: strin
 export interface Sensor { sensor_id: number; sensor_code: string; sensor_name: string }
 export interface AwaitingTrip { trip_id: number; plate: string }
 
-export const fetchWagons = (free = false) =>
-  api.get<Wagon[]>('/dimensions/wagons/' + (free ? '?free=true' : '')).then((r) => r.data)
-export const fetchChambers = (occupied = false) =>
-  api.get<Chamber[]>('/dimensions/chambers/' + (occupied ? '?occupied=true' : '')).then((r) => r.data)
+export const fetchWagons = (available = false) =>
+  api.get<Wagon[]>('/dimensions/wagons/' + (available ? '?available=true' : '')).then((r) => r.data)
+export const fetchChambers = (loaded = false) =>
+  api.get<Chamber[]>('/dimensions/chambers/' + (loaded ? '?loaded=true' : '')).then((r) => r.data)
 export const fetchOperators = () => api.get<Operator[]>('/dimensions/operators/').then((r) => r.data)
 export const fetchProducts = () => api.get<Product[]>('/dimensions/products/').then((r) => r.data)
 export const fetchGlazes = () => api.get<Glaze[]>('/dimensions/glazes/').then((r) => r.data)

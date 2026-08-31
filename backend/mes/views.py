@@ -190,36 +190,36 @@ def glaze_list(request):
 
 @api_view(['GET'])
 @permission_classes([PUBLIC])
-def wagon_list(request):
-    """Wagon dropdown. ?free=true -> only wagons with no active trip (eligible for
-    a new Setting load). Default returns all."""
-    qs = Wagon.objects.all()
-    if request.query_params.get('free') == 'true':
-        qs = qs.exclude(
-            wagontrip__status__in=[
-                WagonTrip.STATUS_IN_PROGRESS, WagonTrip.STATUS_BODY_DRIED,
-                WagonTrip.STATUS_WAITING_HALL, WagonTrip.STATUS_IN_TUNNEL,
-                WagonTrip.STATUS_AWAITING_DISCHARGE,
-            ]
-        ).distinct()
-    return Response(WagonOut(qs, many=True).data)
+def chamber_list(request):
+    """Chambers. ?loaded=true -> only currently-loaded (full) chambers; ?loaded=false
+    -> only empty chambers. No param -> all. The Setting form requests loaded=true
+    (you can only discharge a chamber that is full)."""
+    qs = Chamber.objects.all()
+    loaded = request.query_params.get('loaded')
+    if loaded in ('true', '1', 'yes'):
+        qs = qs.filter(state__is_loaded=True)
+    elif loaded in ('false', '0', 'no'):
+        qs = qs.filter(state__is_loaded=False)
+    return Response(ChamberOut(qs, many=True).data)
 
 
 @api_view(['GET'])
 @permission_classes([PUBLIC])
-def chamber_list(request):
-    """Chamber dropdown. ?occupied=true -> only chambers with an active (non-completed)
-    Setting trip, i.e. currently loaded. Default returns all."""
-    qs = Chamber.objects.all()
-    if request.query_params.get('occupied') == 'true':
-        qs = qs.filter(
-            settingevent__wagons__trip__status__in=[
+def wagon_list(request):
+    """Wagons. ?available=true -> only wagons whose LAST trip is completed/abandoned/none
+    (free to be loaded in a Setting batch). A wagon with an active trip is excluded.
+    No param -> all."""
+    qs = Wagon.objects.all()
+    if request.query_params.get('available') in ('true', '1', 'yes'):
+        busy = WagonTrip.objects.filter(
+            status__in=[
                 WagonTrip.STATUS_IN_PROGRESS, WagonTrip.STATUS_BODY_DRIED,
                 WagonTrip.STATUS_WAITING_HALL, WagonTrip.STATUS_IN_TUNNEL,
                 WagonTrip.STATUS_AWAITING_DISCHARGE,
             ]
-        ).distinct()
-    return Response(ChamberOut(qs, many=True).data)
+        ).values_list('wagon_id', flat=True)
+        qs = qs.exclude(wagon_id__in=busy)
+    return Response(WagonOut(qs, many=True).data)
 
 
 @api_view(['GET'])

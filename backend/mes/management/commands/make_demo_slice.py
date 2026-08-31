@@ -78,7 +78,8 @@ class Command(BaseCommand):
             self._clear()
             return
 
-        self.stdout.write('Building demo slice (1399 window rebased to 1405)...')
+        # Idempotent: drop any prior demo slice (dated 1405) before rebuilding.
+        self._clear()
         wagons = {w.wagon_name: w for w in Wagon.objects.all()}
         chambers = {c.chamber_id: c for c in Chamber.objects.all()}
         operators = {o.operator_id: o for o in Operator.objects.all()}
@@ -283,29 +284,27 @@ class Command(BaseCommand):
         ))
 
     def _clear(self):
-        # Demo rows carry a `demo:`-namespaced client_token. Recompute the same token
-        # set used at build time and delete by it (SettingEvent/KilnPush/PackingHeader/
-        # DryerCycle cascade to their trips and child rows).
+        # Demo rows are all rebased into 1405, so clear by date prefix (not token —
+        # tokens are deterministic per source key but the demo may have been rebuilt
+        # with different logic, so date-prefix is the reliable discriminator).
         from mes.models import (
             DryerCycle, KilnPush, KilnExit, PackingHeader, PackingWagon,
             SettingEvent, SettingWagon, WagonTrip,
         )
-        demo_tokens = set()
-        # Mirror the seed ranges used in handle().
-        for s in list(range(0, 400000)):
-            demo_tokens.add(str(uuid.uuid5(uuid.NAMESPACE_URL, f'demo:{s}')))
         with transaction.atomic():
-            setting_ids = list(
-                SettingEvent.objects.filter(client_token__in=demo_tokens).values_list('setting_event_id', flat=True)
+            demo_setting_ids = list(
+                SettingEvent.objects.filter(date_jalali__startswith=DEMO_YEAR)
+                .values_list('setting_event_id', flat=True)
             )
-            trips = WagonTrip.objects.filter(setting_wagons__setting_event_id__in=setting_ids).distinct()
-            # Delete protected-FK children explicitly before the trips.
-            KilnExit.objects.filter(trip__in=trips).delete()
-            SettingWagon.objects.filter(trip__in=trips).delete()
-            KilnPush.objects.filter(trip__in=trips).delete()
-            PackingWagon.objects.filter(trip__in=trips).delete()
-            PackingHeader.objects.filter(wagons__trip__in=trips).delete()
-            # Dryer cycles in the demo are rebased to 1405; clear those by date prefix.
-            DryerCycle.objects.filter(load_date__startswith='1405').delete()
-            trips.delete()
+            demo_trips = WagonTrip.objects.filter(
+                setting_wagons__setting_event_id__in=demo_setting_ids
+            ).distinct()
+            KilnExit.objects.filter(trip__in=demo_trips).delete()
+            SettingWagon.objects.filter(trip__in=demo_trips).delete()
+            KilnPush.objects.filter(trip__in=demo_trips).delete()
+            PackingWagon.objects.filter(trip__in=demo_trips).delete()
+            PackingHeader.objects.filter(pack_date__startswith=DEMO_YEAR).delete()
+            DryerCycle.objects.filter(load_date__startswith=DEMO_YEAR).delete()
+            SettingEvent.objects.filter(date_jalali__startswith=DEMO_YEAR).delete()
+            demo_trips.delete()
         self.stdout.write(self.style.WARNING('Demo slice cleared.'))

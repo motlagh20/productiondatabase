@@ -1,5 +1,6 @@
 from .dimensions import (
     Chamber,
+    ChamberState,
     Glaze,
     KilnSensor,
     Operator,
@@ -21,7 +22,7 @@ from .spine import (
 )
 
 __all__ = [
-    'Chamber', 'Glaze', 'KilnSensor', 'Operator', 'Product', 'Wagon',
+    'Chamber', 'ChamberState', 'Glaze', 'KilnSensor', 'Operator', 'Product', 'Wagon',
     'WagonTrip', 'DryerCycle', 'DryerReading', 'SettingEvent', 'SettingWagon',
     'KilnPush', 'KilnReading', 'KilnExit', 'PackingHeader', 'PackingWagon',
     'EtlReject',

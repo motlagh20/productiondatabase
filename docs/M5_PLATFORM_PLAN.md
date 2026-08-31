@@ -152,9 +152,20 @@ PR [#1](https://github.com/motlagh20/productiondatabase/pull/1) (`m5-slice-build
   - Lesson learned: pushes and exits MUST be interleaved on one sequence-ordered timeline;
     running all pushes before any exit fills the 44-wagon tunnel and jams (false "tunnel full"
     rejects). Fixed in `replay_historical` stage 2.
-- **Tests:** 12 acceptance tests covering FIFO-44 ceiling + slot freeing, exit=entry+43,
-  one-trip-across-days spine, replay idempotency, out-of-range plate rejection, plate dropdown
-  range, packing state guard, unauthenticated rejection, service-layer rule violation.
+- **ChamberState control table (`ChamberState`):** point-in-time "is this chamber loaded?"
+  flag, NOT derivable from a whole-history aggregate (a chamber stays loaded 1-2+ days
+  while the body dries). `create_dryer_cycle` sets `is_loaded=true`; `create_setting_batch`
+  (discharge) sets `is_loaded=false`. Seeded from each chamber's LAST event by date via
+  `seed_chamber_states` (last dryer cycle -> loaded; last setting -> empty). The Setting
+  form requests `?loaded=true` so operators only pick chambers that are actually full.
+- **Filtered form dropdowns (clean-core + fewer mis-entries):** `chamber_list` supports
+  `?loaded=true|false`; `wagon_list` supports `?available=true` (wagon whose LAST trip is
+  completed/none — i.e. free to load). The Setting form fetches only loaded chambers and
+  available wagons, so the dropdowns are sparse and self-validating.
+- **Demo slice fix:** `make_demo_slice` now auto-clears prior 1405 rows (by date prefix, not
+  token) before rebuilding, so repeated runs are idempotent and actually create wagons/trips.
+  Result: a realistic live edge — 7 chambers loaded, 56 wagons available, 35 active trips —
+  instead of an all-completed or all-busy blob.
 - **Frontend (`frontend/`):** React 19 + TypeScript + Vite + Tailwind v4. Persian RTL layout
   (Vazirmatn font, `lang="fa" dir="rtl"`). Pages: Login, SettingLoadForm, KilnPushForm (18
   sensors), KilnExitForm, PackingForm (multi-wagon from awaiting-discharge), JourneyPage
