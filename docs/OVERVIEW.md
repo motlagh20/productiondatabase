@@ -32,6 +32,9 @@ We profiled the **authoritative source workbooks** (`xls/real data/`, 22 files, 
 | 0004 | PMS repo as design/UX donor | Harvest UI/UX & import flow, never merge code |
 | 0005 | Setting 3-layer model | operation → shift-unload → wagon (repeated ID = batch key) |
 | 0006 | Dimension master redefinition | Composite product; clean operators; old→new mapping with review queue |
+| 0007 | M5 application architecture | Django + DRF / React; dual DB; F1–F7 slice |
+| 0008 | Clean core vs historical ETL | App assumes clean data; Excel scrubbing in ETL only |
+| 0009 | Production workflow sequence | Nine-stage line order — [PRODUCTION_FLOW.md](PRODUCTION_FLOW.md) |
 
 ## Supporting docs
 - `docs/APPENDIX_C_DATA_VS_SCHEMA.md` — §1–12: constraint conflicts, packing source, operational columns, date/time, temperatures. **The canonical data-profile reference.**

@@ -7,10 +7,12 @@
 ## 1. Introduction
 
 The Manufacturing Analytics & Execution Platform (MES) digitizes the roof-tile / ceramic
-factory floor: operators register each stage of a wagon's journey (Setting → Dryer → Kiln →
-Packing) through structured forms; managers get live dashboards (kiln tunnel occupancy,
-wagon journey trace, daily KPIs). The initial reference plant is a single roof-tile factory;
-the schema stays multi-factory configurable (MASTER_SPEC §P3).
+factory floor: operators register each **recorded** production stage (Dryer → Setting →
+Waiting hall → Kiln → Packing) through structured forms; managers get live dashboards (kiln
+tunnel occupancy, wagon journey trace, daily KPIs). The **full physical line** is nine stages
+including prep, press, optional glazing, and warehouse — see [PRODUCTION_FLOW.md](PRODUCTION_FLOW.md).
+The initial reference plant is a single roof-tile factory; the schema stays multi-factory
+configurable (MASTER_SPEC §P3).
 
 ### 1.1 Stakeholders
 - **Operator** — floor worker who registers loads/pushes/packs at each station.
@@ -20,7 +22,7 @@ the schema stays multi-factory configurable (MASTER_SPEC §P3).
 
 ### 1.2 Definitions
 - **Wagon** — physical cart identified by a plate NAME (e.g. `12`), not a sequence number.
-- **Trip** — one wagon's journey from Setting load → Kiln push → Packing unload (`wagon_trip`).
+- **Trip** — one wagon's journey from dryer body (when linked) → Setting load → waiting hall → Kiln push → Packing unload (`wagon_trip`). Trip_id assigned at Setting load start.
 - **Chamber** — physical dryer chamber (1..40); Setting only *references* the source chamber.
 - **Kiln tunnel** — FIFO conveyor, fixed capacity **44** wagons; a wagon exits 43 pushes after entry.
 
@@ -34,31 +36,29 @@ the schema stays multi-factory configurable (MASTER_SPEC §P3).
 - Persian (Farsi) UI, RTL, Jalali dates (`jdatetime`).
 
 ### 2.2 Production flow order (physical sequence on the floor)
-The wagon journey follows this **strict physical order** (owner-specified 2026-08-29):
-```
-Forming (فرم‌دهی)      — NOT YET IN SCOPE (future module)
-   ↓
-Dryer (خشک‌کن)         — clay bodies are dried; chamber 1..40
-   ↓
-Glazing (لعاب‌زنی)     — NOT YET IN SCOPE (future module)
-   ↓
-Setting (ستینگ)       — **CHAMBER-CENTRIC**: when dryer chamber x is unloaded, its dried body is
-                        loaded onto 1–4 wagons until chamber x is fully emptied. The Setting form
-                        therefore selects a chamber, then records the wagons fed from THAT chamber
-                        in one batch. A Setting batch = (date, shift, chamber, operator) + 1..4 wagons,
-                        each with its own load start/end time, packages, glaze, khesht.
-   ↓
-Waiting hall (سالن انتظار) — loaded wagons wait for a kiln push slot.
-                        Temperature logging in this hall is anticipated later (owner 2026-08-29);
-                        schema leaves room for a separate `waiting_hall_reading` table (see M5_PROPOSED_SCHEMA §2.5).
-   ↓
-Kiln (کوره)           — FIFO tunnel, fixed capacity 44; wagon enters at push k, exits at k+43
-   ↓
-Packing (پکینگ/بسته‌بندی) — wagon discharged from kiln is unpacked & graded
-```
-> **Key correction:** Setting does NOT precede Dryer. The dryer produces the dried body that
-> Setting then loads onto a wagon. The Setting `chamber_no` column is a *reference* to the
-> source dryer chamber (1..40), not a Setting-owned chamber. (ADR-0008 / owner rule 2026-08-29.)
+The **complete line** follows this order (owner-confirmed 2026-08-31, [PRODUCTION_FLOW.md](PRODUCTION_FLOW.md), ADR-0009):
+
+| # | Stage | In MES app? |
+|---|-------|-------------|
+| 1 | Preparation (آماده‌سازی) | ❌ future |
+| 2 | Forming / Press (فرم‌دهی / پرس) | ❌ future |
+| 3 | Dryer (خشک‌کن, 40 chambers) | ✅ **F1** — first recorded step |
+| 4 | Glazing (لعاب‌زنی) | ⚠️ optional; glaze on Setting row |
+| 5 | Setting (ستینگ) | ✅ **F2** — chamber-centric wagon load |
+| 6 | Waiting hall (سالن انتظار) | ⚠️ optional; `waiting_hall` trip state |
+| 7 | Kiln (کوره) | ✅ **F3/F4** — FIFO-44 tunnel |
+| 8 | Packing (بسته‌بندی) | ✅ **F5** |
+| 9 | Finished-goods warehouse (انبار محصول) | ❌ future |
+
+**Setting (5) detail:** when dryer chamber *x* is unloaded, its dried body is loaded onto 1–4
+wagons until chamber *x* is fully emptied. Batch = (date, shift, chamber, operator) + wagons with
+load times, packages, glaze, khesht.
+
+**Waiting hall (6):** loaded wagons may wait before a kiln push slot; temperature logging
+anticipated later (`waiting_hall_reading` placeholder in §5).
+
+> **Binding:** Dryer (3) always precedes Setting (5). Setting `chamber_no` references the
+> **source dryer chamber** (1..40), not a separate Setting-owned chamber.
 
 ### 2.2 User classes
 | Class | Privileges |

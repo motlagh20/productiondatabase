@@ -283,10 +283,10 @@ Evidence shorthand used below:
 - **Status:** `Needs plant validation`
 
 ### Operation / Process Stage
-- **Definition:** A configurable step in a manufacturing workflow (Level 2, Master Rules §4). The stages evidenced for the current plant: forming → tray/finger handling → dryer loading → drying → dryer unloading → setting/wagons → kiln → sorting/grading → waste classification (Master Rules §5). These must be configuration, not code, in the new platform.
+- **Definition:** A configurable step in a manufacturing workflow (Level 2, Master Rules §4). **Owner-confirmed sequence (2026-08-31, [ADR-0009](../adr/ADR-0009-production-workflow-sequence.md)):** (1) آماده‌سازی → (2) فرم‌دهی/پرس → (3) خشک‌کن → (4) لعاب‌زنی *(optional)* → (5) ستینگ → (6) سالن انتظار *(optional)* → (7) کوره → (8) بسته‌بندی → (9) انبار محصول. Finger/tray handling occurs inside stages 2–3 (finger counts recorded at dryer load/setting). Full diagram: [PRODUCTION_FLOW.md](./PRODUCTION_FLOW.md).
 - **Persian term:** — (stage names appear individually in the UI: بارگذاری خشک‌کن, تخلیه خشک‌کن, پوشینگ کوره …)
-- **Evidence:** Master Rules §5; Datasets A–D each cover one stage; UI page structure.
-- **Status:** `Needs plant validation` — "Exact production workflow" is the first §54 unknown.
+- **Evidence:** Master Rules §5; Datasets A–D cover stages 3, 5, 7, 8; UI page structure; owner confirmation 2026-08-31.
+- **Status:** `Confirmed` (reference-plant sequence). MES recording scope = stages 3, 5, 7, 8 only for MVP.
 
 ## II.4 Quality, grading, and waste
 
@@ -381,7 +381,7 @@ These are calculated values, not stored plant records. The platform must compute
 
 Extracted from Master Rules §54; the glossary cannot be approved until each item is resolved:
 
-1. Exact production workflow (validate §5 diagram end-to-end).
+1. ~~Exact production workflow (validate §5 diagram end-to-end).~~ **RESOLVED (2026-08-31)** — nine-stage sequence in [PRODUCTION_FLOW.md](./PRODUCTION_FLOW.md) / [ADR-0009](../adr/ADR-0009-production-workflow-sequence.md).
 2. Exact meaning of **finger** (physical object? capacity? relation to tray?).
 3. Exact meaning of **package** (bundle size? per-product?).
 4. Exact meaning of **column** (stacking unit? capacity?).
@@ -484,7 +484,7 @@ Import Batch / Source Record Lineage (every historical record traceable — Mast
 
 | Configuration object | Initial plant values (Level 3) |
 |---|---|
-| Process stages & workflow | Forming → Finger/Tray handling → Dryer loading → Drying → Dryer unloading → Setting/Wagon arrangement → Kiln → Sorting/Grading → Waste classification (§5 — to be validated) |
+| Process stages & workflow | (1) Prep → (2) Forming/Press → (3) Dryer → (4) Glazing *(opt)* → (5) Setting → (6) Waiting hall *(opt)* → (7) Kiln → (8) Packing → (9) Warehouse — [PRODUCTION_FLOW.md](./PRODUCTION_FLOW.md), ADR-0009 |
 | Equipment types + instances | Dryer chamber ×32; Kiln ×1 (20 temperature points); Wagons (numbered fleet); Finger cars (count/capacity unknown) |
 | Shift pattern | 3 shifts (codes 1, 2, 3) |
 | Quality outcome set | {Grade 1, Waste} at sorting; {Dryer waste} at drying |
@@ -532,32 +532,42 @@ Blocked pending the Part II §II.7 open-questions checklist:
 
 # Part IV — Business Process Specification (As-Is)
 
-> **Scope note:** This describes what the plant *currently records*, proven by the historical CSVs (`xls/`) and the frozen reference app. Recording practice is not necessarily the complete physical process — stages that generate no records (e.g. forming, clay preparation) are nearly invisible in the evidence and are flagged accordingly. It must be validated with plant operational staff before the workflow engine is designed (Master Rules §5).
+> **Scope note:** Part IV describes the **complete physical process** (owner-confirmed 2026-08-31,
+> [PRODUCTION_FLOW.md](./PRODUCTION_FLOW.md), [ADR-0009](../adr/ADR-0009-production-workflow-sequence.md))
+> and what the plant *currently records* in Excel / the app. Stages without workbooks (prep, press,
+> warehouse) are noted as not yet digitized.
 
 ## IV.1 As-is process flow
 
+**Canonical nine-stage sequence** (owner-confirmed 2026-08-31):
+
 ```
-[Forming / shaping of clay product]          ← no records; existence implied (§5)
+(1) PREPARATION (آماده‌سازی)                 ← no Excel module; not in MVP
                  ↓
-[Tray / Finger handling]                     ← no direct records; finger counts appear at dryer loading
+(2) FORMING / PRESS (فرم‌دهی / پرس)         ← no Excel module; not in MVP
                  ↓
-(1) DRYER LOADING            evidence: Dataset A (xls/Dryer.csv), app.dryer_loading
+(3) DRYER (خشک‌کن, 40 chambers)             ← evidence: Dryer-All.xlsx, Dataset A, app F1
+      · loading, drying, hourly temp/humidity, unloading
+      · finger counts recorded at load (finger car transfers)
                  ↓
-(2) DRYING                   evidence: derived durations; dryer readings tables (21 points)
+(4) GLAZING (لعاب‌زنی)                      ← OPTIONAL (product-dependent)
+      · no dedicated station module yet; glaze on Setting wagon rows when applicable
                  ↓
-(3) DRYER UNLOADING          evidence: Dataset A unload columns, app.dryer_unloading
+(5) SETTING / WAGON ARRANGEMENT (ستینگ)     ← evidence: Set_All_1.xlsx, Datasets B/C, app F2
+      · chamber-centric: dried body from (3) loaded onto 1..4 wagons
                  ↓
-(4) SETTING / WAGON ARRANGEMENT
-                             evidence: Dataset C (xls/Setting_Setting.csv) +
-                                       Dataset B (xls/Setting_wagons.csv), app.setting_processes
+(6) WAITING HALL (سالن انتظار)              ← OPTIONAL buffer before kiln
+      · modeled as wagon_trip.waiting_hall; no temp-log module yet
                  ↓
-(5) KILN PUSH / FIRING       evidence: xls/Kiln.csv (2,821 rows), app.kiln_push_data
+(7) KILN PUSH / FIRING (کوره)               ← evidence: Kiln-Merged.xlsx, xls/Kiln.csv, app F3/F4
                  ↓
-(6) SORTING / GRADING / PACKAGING
-                             evidence: Dataset D (xls/Packing.csv), app.packaging_records
+(8) PACKING / GRADING (بسته‌بندی)           ← evidence: Packing-All.xlsx, Dataset D, app F5
                  ↓
-[Warehouse / finished production]            ← reference app tables exist; no historical CSV
+(9) FINISHED-GOODS WAREHOUSE (انبار محصول)  ← reference app tables only; not in MVP
 ```
+
+See [PRODUCTION_FLOW.md](./PRODUCTION_FLOW.md) for the Mermaid diagram and MES recording map.
+**Binding:** Dryer (3) always precedes Setting (5).
 
 ## IV.2 Stage descriptions (what is recorded, by whom, with what)
 

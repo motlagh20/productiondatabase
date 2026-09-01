@@ -43,8 +43,12 @@ reference implementation; the architecture must stay multi-factory configurable 
 
 ## 3. Functional requirements (initial)
 
-Production flow order (owner-specified): **Dryer → Setting → Waiting hall → Kiln → Packing**
-(Forming & Glazing not yet in scope).
+Production flow order (owner-specified 2026-08-31, [PRODUCTION_FLOW.md](PRODUCTION_FLOW.md) /
+[ADR-0009](../adr/ADR-0009-production-workflow-sequence.md)):
+
+**Prep → Forming/Press → Dryer → Glazing *(opt)* → Setting → Waiting hall *(opt)* → Kiln → Packing → Warehouse**
+
+MES app records stages **3, 5, 7, 8** (F1–F5). Prep, press, warehouse not yet in scope; glazing optional.
 
 | ID | Capability | Actor | Source module |
 |----|-----------|-------|---------------|
