@@ -6,16 +6,25 @@ from rest_framework.response import Response
 
 from . import services
 from .exceptions import IsManager
-from .models import Chamber, Glaze, KilnPush, KilnSensor, Operator, Product, Wagon, WagonTrip
+from .models import (
+    Chamber, ChamberState, DryerCycle, Glaze, KilnPush, KilnSensor,
+    Operator, Product, SettingEvent, Wagon, WagonTrip,
+)
 from .serializers import (
     ChamberOut,
     DryerCycleIn,
+    DryerCycleOut,
+    DryerReadingPostIn,
+    DryerUnloadIn,
+    DryerChamberStatusOut,
     GlazeOut,
     KilnPushIn,
+    KilnPushOut,
     OperatorOut,
     PackingHeaderIn,
     ProductOut,
     SettingEventIn,
+    SettingEventOut,
     SettingWagonIn,
     WagonOut,
 )
@@ -167,6 +176,130 @@ def wagon_journey(request):
     if not plate:
         return Response({'detail': 'plate query param is required.'}, status=400)
     return Response({'plate': plate, 'trips': services.wagon_journey(plate=plate)})
+
+
+# --- New UI-merge endpoints (2 writes + 4 reads) ---
+
+@api_view(['POST'])
+@permission_classes([WRITE_PERMISSION])
+def dryer_reading_create(request):
+    """Append one hourly reading to the chamber's open dryer cycle."""
+    ser = DryerReadingPostIn(data=request.data)
+    ser.is_valid(raise_exception=True)
+    d = ser.validated_data
+    chamber = Chamber.objects.get(pk=d['chamber_id'])
+    reading = services.append_dryer_reading(
+        chamber=chamber,
+        temperature_c=d.get('temperature_c'),
+        humidity_pct=d.get('humidity_pct'),
+        hour_offset=d.get('hour_offset'),
+    )
+    return Response({
+        'dryer_reading_id': reading.dryer_reading_id,
+        'hour_offset': reading.hour_offset,
+    }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@permission_classes([WRITE_PERMISSION])
+def dryer_unload(request):
+    """Complete the unload side of the chamber's open dryer cycle."""
+    ser = DryerUnloadIn(data=request.data)
+    ser.is_valid(raise_exception=True)
+    d = ser.validated_data
+    chamber = Chamber.objects.get(pk=d['chamber_id'])
+    cycle = services.unload_dryer_chamber(
+        chamber=chamber,
+        unload_date=d.get('unload_date', ''),
+        unload_time=d.get('unload_time'),
+        unload_operator_id=d.get('unload_operator_id'),
+        finger_count=d.get('finger_count'),
+    )
+    return Response({
+        'dryer_cycle_id': cycle.dryer_cycle_id,
+        'unload_date': cycle.unload_date,
+    }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def dryer_chamber_status(request):
+    """Per-chamber status feed for the dryer dashboard (empty/drying/dried)."""
+    chambers = Chamber.objects.filter(chamber_type='DRYER').order_by('chamber_id')
+    result = []
+    for ch in chambers:
+        state = ChamberState.objects.filter(chamber=ch).select_related('current_dryer_cycle').first()
+        is_loaded = state.is_loaded if state else False
+        cycle = state.current_dryer_cycle if (state and state.is_loaded) else None
+
+        if not is_loaded:
+            derived = 'empty'
+        elif cycle and cycle.unload_date:
+            derived = 'dried'
+        else:
+            derived = 'drying'
+
+        cycle_data = None
+        if cycle:
+            latest_r = cycle.readings.order_by('-hour_offset').first()
+            cycle_data = {
+                'dryer_cycle_id': cycle.dryer_cycle_id,
+                'load_date': cycle.load_date,
+                'load_time': str(cycle.load_time) if cycle.load_time else None,
+                'product_name': cycle.product.product_name_setting if cycle.product else '',
+                'finger_count': cycle.finger_count,
+                'unload_date': cycle.unload_date,
+                'latest_reading': {
+                    'hour_offset': latest_r.hour_offset,
+                    'temperature_c': str(latest_r.temperature_c) if latest_r.temperature_c else None,
+                    'humidity_pct': str(latest_r.humidity_pct) if latest_r.humidity_pct else None,
+                } if latest_r else None,
+            }
+        result.append({
+            'chamber_id': ch.chamber_id,
+            'chamber_code': ch.chamber_code,
+            'chamber_type': ch.chamber_type,
+            'is_loaded': is_loaded,
+            'derived_status': derived,
+            'current_cycle': cycle_data,
+        })
+    return Response(result)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def dryer_cycle_list(request):
+    """List dryer cycles with nested readings. ?chamber_id= filter, newest-first."""
+    qs = DryerCycle.objects.select_related('chamber', 'product').prefetch_related('readings').order_by('-dryer_cycle_id')
+    chamber_id = request.query_params.get('chamber_id')
+    if chamber_id:
+        qs = qs.filter(chamber_id=chamber_id)
+    limit = int(request.query_params.get('limit', 50))
+    return Response(DryerCycleOut(qs[:limit], many=True).data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def setting_event_list(request):
+    """List setting events with nested wagons + resolved names. Newest-first."""
+    qs = (SettingEvent.objects
+          .select_related('chamber', 'product', 'supervisor', 'operator')
+          .prefetch_related('wagons__wagon', 'wagons__glaze')
+          .order_by('-setting_event_id'))
+    limit = int(request.query_params.get('limit', 50))
+    return Response(SettingEventOut(qs[:limit], many=True).data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def kiln_push_list(request):
+    """List kiln pushes with nested readings + exit info. Newest-first."""
+    qs = (KilnPush.objects
+          .select_related('wagon', 'operator', 'product', 'trip')
+          .prefetch_related('readings__sensor', 'trip__kiln_exits')
+          .order_by('-push_seq'))
+    limit = int(request.query_params.get('limit', 50))
+    return Response(KilnPushOut(qs[:limit], many=True).data)
 
 
 # --- Dimension dropdowns (public form options — no auth required) ---

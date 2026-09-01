@@ -149,3 +149,118 @@ class DryerCycleIn(serializers.Serializer):
         if not Chamber.objects.filter(pk=value).exists():
             raise serializers.ValidationError(f'Unknown chamber id: {value}')
         return value
+
+
+# --- New serializers for the UI-merge endpoints ---
+
+class DryerReadingPostIn(serializers.Serializer):
+    """POST /api/dryer/readings/ — append one reading to the chamber's open cycle."""
+    chamber_id = serializers.IntegerField()
+    temperature_c = serializers.DecimalField(max_digits=6, decimal_places=2,
+                                              required=False, allow_null=True)
+    humidity_pct = serializers.DecimalField(max_digits=6, decimal_places=2,
+                                            required=False, allow_null=True)
+    hour_offset = serializers.IntegerField(required=False, allow_null=True)
+
+    def validate_chamber_id(self, value):
+        if not Chamber.objects.filter(pk=value).exists():
+            raise serializers.ValidationError(f'Unknown chamber id: {value}')
+        return value
+
+
+class DryerUnloadIn(serializers.Serializer):
+    """POST /api/dryer/unload/ — complete the unload side of the open cycle."""
+    chamber_id = serializers.IntegerField()
+    unload_date = serializers.CharField(max_length=10, required=False, allow_blank=True)
+    unload_time = serializers.TimeField(required=False, allow_null=True)
+    unload_operator_id = serializers.IntegerField(required=False, allow_null=True)
+    finger_count = serializers.IntegerField(required=False, allow_null=True)
+
+    def validate_chamber_id(self, value):
+        if not Chamber.objects.filter(pk=value).exists():
+            raise serializers.ValidationError(f'Unknown chamber id: {value}')
+        return value
+
+
+# --- GET list / status serializers ---
+
+class DryerReadingOut(serializers.Serializer):
+    hour_offset = serializers.IntegerField()
+    humidity_pct = serializers.DecimalField(max_digits=6, decimal_places=2)
+    temperature_c = serializers.DecimalField(max_digits=6, decimal_places=2)
+
+
+class DryerCycleOut(serializers.Serializer):
+    dryer_cycle_id = serializers.IntegerField()
+    chamber_code = serializers.CharField(source='chamber.chamber_code', default='')
+    load_date = serializers.CharField()
+    load_time = serializers.TimeField()
+    unload_date = serializers.CharField()
+    unload_time = serializers.TimeField()
+    product_name = serializers.CharField(source='product.product_name_setting', default='')
+    finger_count = serializers.IntegerField()
+    readings = DryerReadingOut(many=True)
+    created_at = serializers.DateTimeField()
+
+
+class DryerChamberStatusOut(serializers.Serializer):
+    chamber_id = serializers.IntegerField()
+    chamber_code = serializers.CharField()
+    chamber_type = serializers.CharField()
+    is_loaded = serializers.BooleanField()
+    derived_status = serializers.CharField()  # empty | drying | dried
+    current_cycle = serializers.DictField(allow_null=True)
+
+
+class SettingWagonOut(serializers.Serializer):
+    plate = serializers.CharField(source='wagon.wagon_name')
+    glaze_code = serializers.CharField(source='glaze.glaze_code', default='')
+    start_time = serializers.TimeField()
+    end_time = serializers.TimeField()
+    packages = serializers.IntegerField()
+    khesht_count = serializers.IntegerField()
+    trip_id = serializers.IntegerField()
+
+
+class SettingEventOut(serializers.Serializer):
+    setting_event_id = serializers.IntegerField()
+    date_jalali = serializers.CharField()
+    shift = serializers.IntegerField()
+    chamber_code = serializers.CharField(source='chamber.chamber_code')
+    product_name = serializers.CharField(source='product.product_name_setting', default='')
+    supervisor_name = serializers.CharField(source='supervisor.full_name', default='')
+    operator_name = serializers.CharField(source='operator.full_name', default='')
+    personnel_count = serializers.IntegerField()
+    fingers_count = serializers.IntegerField()
+    columns_count = serializers.IntegerField()
+    dryer_waste = serializers.DecimalField(max_digits=6, decimal_places=2)
+    wagons = SettingWagonOut(many=True)
+    created_at = serializers.DateTimeField()
+
+
+class KilnReadingOut(serializers.Serializer):
+    sensor_code = serializers.CharField(source='sensor.sensor_code')
+    temperature_c = serializers.DecimalField(max_digits=6, decimal_places=2)
+
+
+class KilnPushOut(serializers.Serializer):
+    kiln_push_id = serializers.IntegerField()
+    push_seq = serializers.IntegerField()
+    plate = serializers.CharField(source='wagon.wagon_name')
+    push_date = serializers.CharField()
+    push_time = serializers.TimeField()
+    shift = serializers.IntegerField()
+    operator_name = serializers.CharField(source='operator.full_name', default='')
+    product_name = serializers.CharField(source='product.product_name_setting', default='')
+    exit_push_seq = serializers.SerializerMethodField()
+    discharged = serializers.SerializerMethodField()
+    readings = KilnReadingOut(many=True)
+    created_at = serializers.DateTimeField()
+
+    def get_exit_push_seq(self, obj):
+        ke = obj.trip.kiln_exits.first() if obj.trip_id else None
+        return ke.exit_push_seq if ke else None
+
+    def get_discharged(self, obj):
+        ke = obj.trip.kiln_exits.first() if obj.trip_id else None
+        return ke.discharged if ke else False

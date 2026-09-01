@@ -91,6 +91,74 @@ def create_dryer_cycle(*, chamber, readings=None, **cycle_fields):
     return cycle
 
 
+def _open_dryer_cycle(chamber):
+    """Return the chamber's open dryer cycle (the one ChamberState points at)."""
+    state = (ChamberState.objects
+             .select_related('current_dryer_cycle')
+             .filter(chamber=chamber).first())
+    if state is None or not state.is_loaded or state.current_dryer_cycle is None:
+        raise RuleViolation(f'Chamber {chamber.chamber_code} has no open dryer cycle.')
+    return state.current_dryer_cycle
+
+
+@transaction.atomic
+def append_dryer_reading(*, chamber, temperature_c=None, humidity_pct=None,
+                         hour_offset=None):
+    """Append one hourly reading to the chamber's open cycle (split dryer UX:
+    Load -> Readings -> Unload).
+
+    hour_offset defaults to the next free slot (max+1; valid 0..21). Replay-safe
+    by natural key: re-posting the SAME (hour, values) returns the stored reading;
+    the same hour with DIFFERENT values is a rule violation.
+    """
+    cycle = _open_dryer_cycle(chamber)
+
+    if hour_offset is None:
+        last = cycle.readings.order_by('-hour_offset').first()
+        hour_offset = (last.hour_offset + 1) if (last and last.hour_offset is not None) else 0
+    if not (0 <= hour_offset <= 21):
+        raise RuleViolation('hour_offset must be within 0..21.')
+
+    existing = cycle.readings.filter(hour_offset=hour_offset).first()
+    if existing is not None:
+        if existing.temperature_c == temperature_c and existing.humidity_pct == humidity_pct:
+            return existing
+        raise RuleViolation(
+            f'Reading for hour {hour_offset} already exists on this cycle with different values.'
+        )
+    return DryerReading.objects.create(
+        dryer_cycle=cycle, hour_offset=hour_offset,
+        humidity_pct=humidity_pct, temperature_c=temperature_c,
+    )
+
+
+@transaction.atomic
+def unload_dryer_chamber(*, chamber, unload_date='', unload_time=None,
+                         unload_operator_id=None, finger_count=None):
+    """Complete the unload side of the chamber's open dryer cycle.
+
+    The chamber STAYS loaded (the dryer dashboard shows it as 'dried') — the
+    Setting batch discharge is the transition that empties it, because that is
+    what creates the wagon trips. Replay-safe by value: re-posting the same
+    unload date/time is an idempotent success.
+    """
+    cycle = _open_dryer_cycle(chamber)
+    if cycle.unload_date:
+        if cycle.unload_date == unload_date and (unload_time is None or cycle.unload_time == unload_time):
+            return cycle
+        raise RuleViolation(
+            f'Cycle {cycle.dryer_cycle_id} on chamber {chamber.chamber_code} is already unloaded.'
+        )
+    cycle.unload_date = unload_date
+    cycle.unload_time = unload_time
+    if unload_operator_id is not None:
+        cycle.unload_operator_id = unload_operator_id
+    if finger_count is not None:
+        cycle.finger_count = finger_count
+    cycle.save(update_fields=['unload_date', 'unload_time', 'unload_operator_id', 'finger_count'])
+    return cycle
+
+
 def _next_push_seq():
     last = KilnPush.objects.order_by('-push_seq').first()
     return (last.push_seq + 1) if last else 1
