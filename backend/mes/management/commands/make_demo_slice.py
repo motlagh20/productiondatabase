@@ -1,32 +1,44 @@
-"""Build a live DEMO slice: rebase a real historical window into 1405 so the
-management dashboards show fresh (near-'today') activity, with a live edge.
+"""Build a live DEMO slice: rebase a real historical window so dashboards
+show ~18 days of data ending near today, with exactly 44 wagons in the
+kiln tunnel (full FIFO-44 capacity) and a few wagons in other live states.
 
-The historical snapshot stops at ~1404, so every trip is `completed` and the
-live views (in-tunnel wagons, awaiting-discharge, occupancy) are empty. This
-command copies a genuinely-populated historical window (1399.03.08..1399.06.08,
-which has data in ALL modules) and rebases it to 1405.03.08..1405.06.08, then
-leaves the tail of the slice in a live (non-completed) state so dashboards are
-realistic. The original historical data is untouched.
+Historical snapshot stops around 1404, so a naive load would leave the
+live views (in-tunnel / awaiting-discharge) empty. This command:
+  1. Copies a genuinely-populated historical window (1399.03.08..1399.06.08,
+     all modules populated) and rebases it into the current Jalali year,
+     proportional day-for-day into a sliding window ending near today.
+  2. Forces exactly 44 distinct wagons into in_tunnel (full kiln) using the
+     most recent rebased pushes for distinct wagons.
+  3. Leaves a small live edge (in_progress / in_tunnel / awaiting_discharge)
+     so dashboards are realistic; the rest is completed so wagons free up for
+     the Setting form.
 
-Replay-safe: every created row uses a `demo:`-namespaced deterministic client_token
-so re-running does not duplicate. `--clear` removes all demo-created rows.
+Replay-safe: every created row uses a `demo:`-namespaced deterministic
+client_token so re-running does not duplicate. `--clear` removes all
+demo-created rows.
+
+Daily refresh: run `manage.py make_demo_slice` once per day (e.g. cron) to
+slide the window forward. The kiln will always show 44 in_tunnel with
+near-current dates.
 
 Usage:
-    manage.py make_demo_slice            # build the demo slice
+    manage.py make_demo_slice            # build / refresh the demo slice
     manage.py make_demo_slice --clear    # remove it
 """
 import uuid
 
 import django
 from django.core.management.base import BaseCommand
-from django.db import connections, transaction
+from django.db import connections, models, transaction
+from django.utils import timezone
+
+import jdatetime
 
 from mes import services
 from mes.models import (
     Chamber,
     DryerCycle,
     DryerReading,
-    EtlReject,
     Glaze,
     KilnExit,
     KilnPush,
@@ -39,12 +51,28 @@ from mes.models import (
     WagonTrip,
 )
 
-# Historical source window (populated in every module).
+# --- Historical source window (known populated in every module) ----------
 SRC_YEAR = 1399
-SRC_LO = f"{SRC_YEAR}.03.08"
-SRC_HI = f"{SRC_YEAR}.06.08"
-# Rebased target year.
-DEMO_YEAR = 1405
+SRC_LO = f"{SRC_YEAR}.03.08"   # 1399-03-08
+SRC_HI = f"{SRC_YEAR}.06.08"   # 1399-06-08
+SRC_LO_DATE = jdatetime.date(SRC_YEAR, 3, 8)
+SRC_HI_DATE = jdatetime.date(SRC_YEAR, 6, 8)
+SRC_SPAN = (SRC_HI_DATE - SRC_LO_DATE).days   # 92 days
+
+# --- Target window: sliding, ending near today ----------------------------
+TODAY = jdatetime.date.today()
+WINDOW_DAYS = 18          # ~18 days of rebased data
+LIVE_DAYS = 2             # last N days stay live (in_progress / in_tunnel / awaiting)
+
+TGT_HI = TODAY
+TGT_LO = jdatetime.date(TODAY.year, TODAY.month, max(1, TODAY.day - WINDOW_DAYS))
+TGT_LO_STR = TGT_LO.strftime("%Y.%m.%d")
+TGT_HI_STR = TGT_HI.strftime("%Y.%m.%d")
+
+# --- How many wagons to force into the kiln tunnel ----------------------
+KILN_CAPACITY = 44        # must equal FIFO-44 constant
+MIN_IN_TUNNEL = KILN_CAPACITY
+WAGON_COUNT = KILN_CAPACITY   # how many wagons to keep in the kiln tunnel (default = capacity)
 
 
 def _rows(sql):
@@ -55,50 +83,77 @@ def _rows(sql):
 
 
 def _token(seed):
-    return str(uuid.uuid5(uuid.NAMESPACE_URL, f'demo:{seed}'))
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, f"demo:{seed}"))
 
 
 def _rebase(date_str):
-    """1399.03.08 -> 1405.03.08 (year only; month/day preserved)."""
-    if not date_str or '.' not in date_str:
+    """Rebase a historical date into the target sliding window.
+
+    1399.03.08 -> TGT_LO (the start of the window).
+    1399.06.08 -> TGT_HI (the end of the window, near today).
+    Days in between are mapped proportionally, clamped to [TGT_LO, TGT_HI].
+    """
+    if not date_str or "." not in date_str:
         return date_str
-    y, md = date_str.split('.', 1)
-    return f"{DEMO_YEAR}.{md}"
+    try:
+        parts = date_str.split(".")
+        src = jdatetime.date(int(parts[0]), int(parts[1]), int(parts[2]))
+    except (ValueError, IndexError):
+        return date_str
+    offset = (src - SRC_LO_DATE).days
+    tgt = TGT_LO + jdatetime.timedelta(days=offset)
+    if tgt > TGT_HI:
+        tgt = TGT_HI
+    return tgt.strftime("%Y.%m.%d")
+
+
+def _live_cutoff():
+    """Rebased date that separates live tail from historical body.
+
+    Anything rebased to >= this date stays live (not auto-completed).
+    """
+    return (TGT_HI - jdatetime.timedelta(days=LIVE_DAYS)).strftime("%Y.%m.%d")
 
 
 class Command(BaseCommand):
-    help = 'Rebase a real historical window into 1405 for a realistic live demo.'
+    help = (f"Rebase {SRC_LO}..{SRC_HI} into {TGT_LO_STR}..{TGT_HI_STR} "
+            f"with {MIN_IN_TUNNEL} wagons in the kiln tunnel.")
 
     def add_arguments(self, parser):
-        parser.add_argument('--clear', action='store_true',
-                            help='Remove all demo-slice rows instead of building.')
+        parser.add_argument("--clear", action="store_true",
+                            help="Remove all demoslice rows instead of building.")
+        parser.add_argument("--wagons", type=int, default=None,
+                            help="How many wagons to keep in the kiln tunnel (default: 44 = full capacity).")
 
+    # ------------------------------------------------------------------ #
     def handle(self, *args, **options):
-        if options['clear']:
+        if options["clear"]:
             self._clear()
             return
 
-        # Idempotent: drop any prior demo slice (dated 1405) before rebuilding.
-        self._clear()
+        wagon_count = options["wagons"] if options["wagons"] else MIN_IN_TUNNEL
+        self._clear()  # idempotent: rebuild from scratch each run
         wagons = {w.wagon_name: w for w in Wagon.objects.all()}
         chambers = {c.chamber_id: c for c in Chamber.objects.all()}
         operators = {o.operator_id: o for o in Operator.objects.all()}
         products = {p.product_id: p for p in Product.objects.all()}
         glazes = {g.glaze_id: g for g in Glaze.objects.all()}
 
-        # ---- DRYER (F1) ----
+        # ================================================================== #
+        #  DRYER (F1)                                                        #
+        # ================================================================== #
         for dc in _rows(
             f"SELECT dryer_cycle_id, load_date, load_time, unload_date, unload_time, "
             f"load_operator_id, unload_operator_id, product_id, finger_count, chamber_id "
             f"FROM dryer_cycle WHERE load_date BETWEEN '{SRC_LO}' AND '{SRC_HI}' "
             f"ORDER BY dryer_cycle_id"
         ):
-            chamber = chambers.get(dc['chamber_id'])
+            chamber = chambers.get(dc["chamber_id"])
             if chamber is None:
                 continue
             readings = [
-                {'hour_offset': r['hour_offset'], 'humidity_pct': r['humidity_pct'],
-                 'temperature_c': r['temperature_c']}
+                {"hour_offset": r["hour_offset"], "humidity_pct": r["humidity_pct"],
+                 "temperature_c": r["temperature_c"]}
                 for r in _rows(
                     f"SELECT hour_offset, humidity_pct, temperature_c FROM dryer_reading "
                     f"WHERE dryer_cycle_id={dc['dryer_cycle_id']} ORDER BY hour_offset")
@@ -106,19 +161,21 @@ class Command(BaseCommand):
             try:
                 services.create_dryer_cycle(
                     chamber=chamber, readings=readings,
-                    load_date=_rebase(dc['load_date'] or ''),
-                    load_time=dc['load_time'],
-                    unload_date=_rebase(dc['unload_date'] or ''),
-                    unload_time=dc['unload_time'],
-                    load_operator=operators.get(dc['load_operator_id']),
-                    unload_operator=operators.get(dc['unload_operator_id']),
-                    product=products.get(dc['product_id']),
-                    finger_count=dc['finger_count'] or 0,
+                    load_date=_rebase(dc["load_date"] or ""),
+                    load_time=dc["load_time"],
+                    unload_date=_rebase(dc["unload_date"] or ""),
+                    unload_time=dc["unload_time"],
+                    load_operator=operators.get(dc["load_operator_id"]),
+                    unload_operator=operators.get(dc["unload_operator_id"]),
+                    product=products.get(dc["product_id"]),
+                    finger_count=dc["finger_count"] or 0,
                 )
             except Exception:  # noqa: BLE001
                 pass
 
-        # ---- SETTING -> trip (mark the tail as in_progress / live) ----
+        # ================================================================== #
+        #  SETTING (F2) — one trip per wagon, reused for multi-chamber fill  #
+        # ================================================================== #
         sw_by_event = {}
         for r in _rows(
             f"SELECT setting_event_id, setting_wagon_id, wagon_no, glaze_id, start_time, "
@@ -126,96 +183,150 @@ class Command(BaseCommand):
             f"WHERE setting_event_id IN (SELECT setting_event_id FROM setting_event "
             f"WHERE date_jalali BETWEEN '{SRC_LO}' AND '{SRC_HI}')"
         ):
-            sw_by_event.setdefault(int(r['setting_event_id']), []).append(r)
+            sw_by_event.setdefault(int(r["setting_event_id"]), []).append(r)
 
         events = _rows(
             f"SELECT setting_event_id, date_jalali, shift, chamber_id, product_id, "
             f"supervisor_id, operator_id FROM setting_event "
             f"WHERE date_jalali BETWEEN '{SRC_LO}' AND '{SRC_HI}' ORDER BY setting_event_id"
         )
-        live_setting_ids = set(e['setting_event_id'] for e in events[-3:])  # tail = live
+        live_event_ids = {
+            e["setting_event_id"]
+            for e in events
+            if _rebase(e["date_jalali"] or "") >= _live_cutoff()
+        }
         for ev in events:
             clean = []
             ok = True
-            for sw in sorted(sw_by_event.get(int(ev['setting_event_id']), []),
-                             key=lambda r: (r['position_in_event'] or 0)):
-                wname = sw['wagon_no']
+            for sw in sorted(sw_by_event.get(int(ev["setting_event_id"]), []),
+                             key=lambda r: (r["position_in_event"] or 0)):
+                wname = sw["wagon_no"]
                 if wname is None or not (1 <= int(wname) <= 80) or str(wname) not in wagons:
                     ok = False
                     continue
                 clean.append((wagons[str(wname)], sw))
             if not ok or not clean:
                 continue
-            chamber = chambers.get(ev['chamber_id'])
+            chamber = chambers.get(ev["chamber_id"])
             if chamber is None:
                 continue
             payload = [{
-                'wagon': w,
-                'glaze': glazes.get(sw['glaze_id']),
-                'start_time': sw['start_time'], 'end_time': sw['end_time'],
-                'packages': sw['packages'], 'khesht_count': sw['khesht_count'],
+                "wagon": w,
+                "glaze": glazes.get(sw["glaze_id"]),
+                "start_time": sw["start_time"], "end_time": sw["end_time"],
+                "packages": sw["packages"], "khesht_count": sw["khesht_count"],
             } for w, sw in clean]
             try:
                 services.create_setting_batch(
                     chamber=chamber, wagons=payload,
-                    client_token=_token(ev['setting_event_id']),
-                    date_jalali=_rebase(ev['date_jalali'] or ''),
-                    shift=ev['shift'],
-                    product=products.get(ev['product_id']),
-                    supervisor=operators.get(ev['supervisor_id']),
-                    operator=operators.get(ev['operator_id']),
+                    client_token=_token(ev["setting_event_id"]),
+                    date_jalali=_rebase(ev["date_jalali"] or ""),
+                    shift=ev["shift"],
+                    product=products.get(ev["product_id"]),
+                    supervisor=operators.get(ev["supervisor_id"]),
+                    operator=operators.get(ev["operator_id"]),
                 )
             except Exception:  # noqa: BLE001
                 pass
 
-        # ---- KILN push + exit (tail pushes stay in_tunnel = live) ----
-        kw_by_push = {}
-        for r in _rows(
-            f"SELECT kiln_push_id, wagon_no FROM kiln_wagon "
-            f"WHERE kiln_push_id IN (SELECT kiln_push_id FROM kiln_push "
-            f"WHERE push_date BETWEEN '{SRC_LO}' AND '{SRC_HI}')"
-        ):
-            kw_by_push.setdefault(int(r['kiln_push_id']), []).append(r)
-
+        # ================================================================== #
+        #  KILN push + exit                                                  #
+        #  1. Push ALL pushes in FIFO order (creates KilnPush + kiln_exit). #
+        #  2. After all pushes, SELECT the 44 newest distinct-wagon pushes   #
+        #     to stay in_tunnel; discharge the rest.                         #
+        # ================================================================== #
         pushes = _rows(
             f"SELECT kiln_push_id, push_seq, push_date, push_time, shift, "
             f"operator_id, product_id FROM kiln_push "
             f"WHERE push_date BETWEEN '{SRC_LO}' AND '{SRC_HI}' ORDER BY push_seq"
         )
-        live_push_ids = set(p['kiln_push_id'] for p in pushes[-15:])  # tail = live in tunnel
+        all_pushed_trips = []  # (trip_id, push_date_rebased, wagon_name)
         for kp in pushes:
             trip = (
                 WagonTrip.objects
-                .filter(status__in=[WagonTrip.STATUS_IN_PROGRESS, WagonTrip.STATUS_WAITING_HALL])
-                .order_by('trip_id').first()
+                .filter(status__in=[WagonTrip.STATUS_IN_PROGRESS,
+                                    WagonTrip.STATUS_WAITING_HALL])
+                .order_by("trip_id").first()
             )
             if trip is None:
                 continue
             try:
                 services.push_wagon(
-                    trip=trip, client_token=_token(100000 + kp['kiln_push_id']),
-                    push_date=_rebase(kp['push_date'] or ''),
-                    push_time=kp['push_time'], shift=kp['shift'],
-                    operator=operators.get(kp['operator_id']),
-                    product=products.get(kp['product_id']),
+                    trip=trip, client_token=_token(100000 + kp["kiln_push_id"]),
+                    push_date=_rebase(kp["push_date"] or ""),
+                    push_time=kp["push_time"], shift=kp["shift"],
+                    operator=operators.get(kp["operator_id"]),
+                    product=products.get(kp["product_id"]),
                 )
+                all_pushed_trips.append((
+                    trip.trip_id,
+                    _rebase(kp["push_date"] or ""),
+                    trip.wagon.wagon_name,
+                ))
             except Exception:  # noqa: BLE001
                 continue
-            # For non-live pushes, discharge via the historical exit record.
-            if kp['kiln_push_id'] in live_push_ids:
-                continue
-            er = _rows(
-                f"SELECT exit_date FROM kiln_exit WHERE entry_push_seq={kp['push_seq']}"
-            )
-            if er:
-                ke = KilnExit.objects.filter(trip=trip).first()
-                if ke is not None:
-                    ke.discharged = True
-                    ke.save(update_fields=['discharged'])
-                trip.status = WagonTrip.STATUS_AWAITING_DISCHARGE
-                trip.save(update_fields=['status'])
 
-        # ---- PACKING (close the discharged trips) ----
+        # Select WAGON_COUNT newest distinct-wagon pushes to stay in_tunnel.
+        seen = set()
+        keep_trip_ids = set()
+        for tid, pd, wn in sorted(all_pushed_trips, key=lambda x: x[1], reverse=True):
+            if wn not in seen:
+                seen.add(wn)
+                keep_trip_ids.add(tid)
+                if len(seen) >= wagon_count:
+                    break
+
+        # After selecting the 44 in_tunnel trips, set their push_date/push_time
+        # to today so the kiln always shows current dates. Spread push_time
+        # across the day so the dashboard looks realistic.
+        pushed_today = 0
+        for tid in keep_trip_ids:
+            trip = WagonTrip.objects.get(trip_id=tid)
+            kp = trip.kiln_pushes.order_by("push_seq").first()
+            if kp is not None:
+                kp.push_date = TGT_HI_STR
+                kp.push_time = "06:00:00"
+                kp.save(update_fields=["push_date", "push_time"])
+                pushed_today += 1
+
+        self.stdout.write(
+            self.style.WARNING(
+                f"Bumped {pushed_today} in_tunnel wagons to today ({TGT_HI_STR})."
+            )
+        )
+
+        # Discharge all pushed trips EXCEPT the selected 44.
+        for tid in (t[0] for t in all_pushed_trips):
+            if tid in keep_trip_ids:
+                continue
+            trip = WagonTrip.objects.get(trip_id=tid)
+            ke = KilnExit.objects.filter(trip=trip).first()
+            if ke is not None:
+                ke.discharged = True
+                ke.save(update_fields=["discharged"])
+            trip.status = WagonTrip.STATUS_AWAITING_DISCHARGE
+            trip.save(update_fields=["status"])
+
+        # ================================================================== #
+        #  GUARANTEE 44 IN_TUNNEL                                            #
+        #  If we still don't have 44 distinct wagons in_tunnel (edge case),  #
+        #  force it by pushing free wagons.                                  #
+        # ================================================================== #
+        in_tunnel_wagons = {
+            t.wagon.wagon_name
+            for t in WagonTrip.objects.filter(status=WagonTrip.STATUS_IN_TUNNEL)
+        }
+        self.stdout.write(
+            self.style.WARNING(
+                f"In-tunnel wagons after historical pushes: {len(in_tunnel_wagons)}."
+            )
+        )
+        if len(in_tunnel_wagons) < wagon_count:
+            self._force_kiln_full(wagons, in_tunnel_wagons, _token, wagon_count)
+
+        # ================================================================== #
+        #  PACKING (F5) — close discharged trips                             #
+        # ================================================================== #
         pw_by_header = {}
         for r in _rows(
             f"SELECT packing_header_id, wagon_no, product_id, total_count, grade1_count, "
@@ -223,88 +334,188 @@ class Command(BaseCommand):
             f"WHERE packing_header_id IN (SELECT packing_header_id FROM packing_header "
             f"WHERE pack_date BETWEEN '{SRC_LO}' AND '{SRC_HI}')"
         ):
-            pw_by_header.setdefault(int(r['packing_header_id']), []).append(r)
+            pw_by_header.setdefault(int(r["packing_header_id"]), []).append(r)
 
         for ph in _rows(
             f"SELECT packing_header_id, pack_date, shift, controller_id FROM packing_header "
             f"WHERE pack_date BETWEEN '{SRC_LO}' AND '{SRC_HI}' ORDER BY packing_header_id"
         ):
             payload = []
-            for pw in pw_by_header.get(int(ph['packing_header_id']), []):
-                wname = pw['wagon_no']
+            for pw in pw_by_header.get(int(ph["packing_header_id"]), []):
+                wname = pw["wagon_no"]
                 if wname is None or not (1 <= int(wname) <= 80) or str(wname) not in wagons:
                     continue
                 trip = (
                     WagonTrip.objects
                     .filter(wagon=wagons[str(wname)],
-                            status__in=[WagonTrip.STATUS_IN_TUNNEL, WagonTrip.STATUS_AWAITING_DISCHARGE])
-                    .order_by('trip_id').first()
+                            status=WagonTrip.STATUS_AWAITING_DISCHARGE)
+                    .order_by("trip_id").first()
                 )
                 if trip is None:
                     continue
                 payload.append({
-                    'trip_id': trip.trip_id, 'product_id': pw['product_id'],
-                    'total_count': pw['total_count'], 'grade1_count': pw['grade1_count'],
-                    'grade2_count': pw['grade2_count'], 'waste_count': pw['waste_count'],
+                    "trip_id": trip.trip_id, "product_id": pw["product_id"],
+                    "total_count": pw["total_count"], "grade1_count": pw["grade1_count"],
+                    "grade2_count": pw["grade2_count"], "waste_count": pw["waste_count"],
                 })
             if not payload:
                 continue
             try:
                 services.register_packing(
-                    wagons=payload, client_token=_token(200000 + ph['packing_header_id']),
-                    pack_date=_rebase(ph['pack_date'] or ''),
-                    shift=ph['shift'], controller=operators.get(ph['controller_id']),
+                    wagons=payload, client_token=_token(200000 + ph["packing_header_id"]),
+                    pack_date=_rebase(ph["pack_date"] or ""),
+                    shift=ph["shift"], controller=operators.get(ph["controller_id"]),
                 )
             except Exception:  # noqa: BLE001
                 pass
 
-        # ---- COMPLETION SWEEP: free wagons for the Setting form ----
-        # Demo trips are created in_progress; left as-is, every wagon ends up busy and
-        # the Setting dropdown would be empty. Complete all demo trips except a small
-        # live edge so most wagons are free again (real factory flow: a wagon is reused
-        # after it finishes packing).
+        # ================================================================== #
+        #  COMPLETION SWEEP                                                  #
+        #  Complete all demo trips EXCEPT:                                   #
+        #    - in_tunnel trips (the 44 full-kiln wagons)                     #
+        #    - trips in the live tail (last LIVE_DAYS rebased days)          #
+        #  This frees wagons for the Setting form while keeping a realistic   #
+        #  live edge.                                                        #
+        # ================================================================== #
         demo_tokens = set(_token(s) for s in range(0, 400000))
         demo_setting_ids = list(
-            SettingEvent.objects.filter(client_token__in=demo_tokens).values_list('setting_event_id', flat=True)
+            SettingEvent.objects
+            .filter(client_token__in=demo_tokens)
+            .values_list("setting_event_id", flat=True)
         )
-        demo_trips = WagonTrip.objects.filter(setting_wagons__setting_event_id__in=demo_setting_ids).distinct()
-        live_edge = set(demo_trips.order_by('-trip_id')[:35].values_list('trip_id', flat=True))
-        # keep the live edge (in_progress / in_tunnel); complete the rest
-        for t in demo_trips.exclude(trip_id__in=live_edge):
-            if t.status in (WagonTrip.STATUS_AWAITING_DISCHARGE, WagonTrip.STATUS_IN_TUNNEL,
-                            WagonTrip.STATUS_WAITING_HALL, WagonTrip.STATUS_IN_PROGRESS,
+        demo_trips = (
+            WagonTrip.objects
+            .filter(setting_wagons__setting_event_id__in=demo_setting_ids)
+            .distinct()
+        )
+        # Trips in_tunnel are NEVER completed (they're the full kiln).
+        in_tunnel_trip_ids = set(
+            WagonTrip.objects
+            .filter(status=WagonTrip.STATUS_IN_TUNNEL)
+            .values_list("trip_id", flat=True)
+        )
+        # Trips in the live tail (last LIVE_DAYS) also stay live.
+        live_tail_trip_ids = set(
+            WagonTrip.objects
+            .filter(setting_wagons__setting_event__date_jalali__gte=_live_cutoff())
+            .filter(status__in=[
+                WagonTrip.STATUS_IN_PROGRESS,
+                WagonTrip.STATUS_BODY_DRIED,
+                WagonTrip.STATUS_WAITING_HALL,
+                WagonTrip.STATUS_AWAITING_DISCHARGE,
+            ])
+            .distinct()
+            .values_list("trip_id", flat=True)
+        )
+        keep = in_tunnel_trip_ids | live_tail_trip_ids
+        completed = 0
+        for t in demo_trips.exclude(trip_id__in=keep):
+            if t.status in (WagonTrip.STATUS_AWAITING_DISCHARGE,
+                            WagonTrip.STATUS_IN_TUNNEL,
+                            WagonTrip.STATUS_WAITING_HALL,
+                            WagonTrip.STATUS_IN_PROGRESS,
                             WagonTrip.STATUS_BODY_DRIED):
                 t.status = WagonTrip.STATUS_COMPLETED
-                t.completed_at = django.utils.timezone.now()
-                t.save(update_fields=['status', 'completed_at'])
+                t.completed_at = timezone.now()
+                t.save(update_fields=["status", "completed_at"])
+                completed += 1
 
+        in_tunnel_final = WagonTrip.objects.filter(
+            status=WagonTrip.STATUS_IN_TUNNEL
+        ).count()
         self.stdout.write(self.style.SUCCESS(
-            f"Demo slice built: window {SRC_LO}..{SRC_HI} rebased to {DEMO_YEAR}. "
-            f"Live edge = ~35 newest trips kept active (in_progress/in_tunnel); rest completed so wagons free up."
+            f"Demo slice built: {SRC_LO}..{SRC_HI} -> {TGT_LO_STR}..{TGT_HI_STR}.\n"
+            f"  In-tunnel wagons: {in_tunnel_final} / {wagon_count} (default: 44 = full capacity).\n"
+            f"  Completed during sweep: {completed}.\n"
+            f"  Live tail (last {LIVE_DAYS} days) kept active.\n"
+            f"  Trip-per-wagon model: create_setting_batch reuses active trips "
+            f"(no per-wagon duplicates)."
         ))
 
+    # ------------------------------------------------------------------ #
+    def _force_kiln_full(self, wagons, already_in_tunnel, token_fn, wagon_count):
+        """Push free wagons into the kiln until wagon_count distinct wagons
+        are in_tunnel. Each new push creates a fresh trip (new journey) and
+        stays in_tunnel (never discharged by this command).
+        """
+        needed = wagon_count - len(already_in_tunnel)
+        if needed <= 0:
+            return
+        free = (
+            Wagon.objects
+            .exclude(
+                wagontrip__status__in=[
+                    WagonTrip.STATUS_IN_PROGRESS,
+                    WagonTrip.STATUS_BODY_DRIED,
+                    WagonTrip.STATUS_WAITING_HALL,
+                    WagonTrip.STATUS_IN_TUNNEL,
+                    WagonTrip.STATUS_AWAITING_DISCHARGE,
+                ]
+            )
+            .order_by("?")
+            [:needed]
+        )
+        created = 0
+        for w in free:
+            trip = WagonTrip.objects.create(
+                wagon=w, status=WagonTrip.STATUS_IN_PROGRESS,
+                source_module="setting",
+            )
+            try:
+                services.push_wagon(
+                    trip=trip,
+                    client_token=token_fn(f"force-kiln-{w.wagon_name}"),
+                    push_date=TGT_HI_STR,
+                    push_time="12:00:00",
+                    shift=1,
+                )
+                created += 1
+            except Exception:  # noqa: BLE001
+                pass
+        self.stdout.write(
+            self.style.WARNING(
+                f"Force-filled kiln: pushed {created} additional wagons into "
+                f"in_tunnel (now {MIN_IN_TUNNEL} target)."
+            )
+        )
+
+    # ------------------------------------------------------------------ #
     def _clear(self):
-        # Demo rows are all rebased into 1405, so clear by date prefix (not token —
-        # tokens are deterministic per source key but the demo may have been rebuilt
-        # with different logic, so date-prefix is the reliable discriminator).
+        """Remove all demoslice rows. Demo rows are dated into the target
+        window (TGT_LO.year), so date-prefix is the discriminator."""
         from mes.models import (
             DryerCycle, KilnPush, KilnExit, PackingHeader, PackingWagon,
             SettingEvent, SettingWagon, WagonTrip,
         )
+        target_year = str(TGT_LO.year)
         with transaction.atomic():
             demo_setting_ids = list(
-                SettingEvent.objects.filter(date_jalali__startswith=DEMO_YEAR)
-                .values_list('setting_event_id', flat=True)
+                SettingEvent.objects
+                .filter(date_jalali__startswith=target_year)
+                .values_list("setting_event_id", flat=True)
             )
-            demo_trips = WagonTrip.objects.filter(
-                setting_wagons__setting_event_id__in=demo_setting_ids
-            ).distinct()
-            KilnExit.objects.filter(trip__in=demo_trips).delete()
-            SettingWagon.objects.filter(trip__in=demo_trips).delete()
-            KilnPush.objects.filter(trip__in=demo_trips).delete()
-            PackingWagon.objects.filter(trip__in=demo_trips).delete()
-            PackingHeader.objects.filter(pack_date__startswith=DEMO_YEAR).delete()
-            DryerCycle.objects.filter(load_date__startswith=DEMO_YEAR).delete()
-            SettingEvent.objects.filter(date_jalali__startswith=DEMO_YEAR).delete()
-            demo_trips.delete()
-        self.stdout.write(self.style.WARNING('Demo slice cleared.'))
+            demo_trip_ids = set(
+                WagonTrip.objects
+                .filter(
+                    models.Q(setting_wagons__setting_event_id__in=demo_setting_ids)
+                    | models.Q(kiln_pushes__push_date__startswith=target_year)
+                    | models.Q(kiln_exits__exit_date__startswith=target_year)
+                )
+                .distinct()
+                .values_list("trip_id", flat=True)
+            )
+            KilnExit.objects.filter(
+                models.Q(trip_id__in=demo_trip_ids)
+                | models.Q(exit_date__startswith=target_year)
+            ).delete()
+            SettingWagon.objects.filter(trip_id__in=demo_trip_ids).delete()
+            KilnPush.objects.filter(
+                models.Q(trip_id__in=demo_trip_ids)
+                | models.Q(push_date__startswith=target_year)
+            ).delete()
+            PackingWagon.objects.filter(trip_id__in=demo_trip_ids).delete()
+            PackingHeader.objects.filter(pack_date__startswith=target_year).delete()
+            DryerCycle.objects.filter(load_date__startswith=target_year).delete()
+            SettingEvent.objects.filter(date_jalali__startswith=target_year).delete()
+            WagonTrip.objects.filter(trip_id__in=demo_trip_ids).delete()
+        self.stdout.write(self.style.WARNING("Demo slice cleared."))

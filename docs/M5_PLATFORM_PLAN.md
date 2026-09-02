@@ -53,13 +53,47 @@ MES app records stages **3, 5, 7, 8** (F1–F5). Prep, press, warehouse not yet 
 | ID | Capability | Actor | Source module |
 |----|-----------|-------|---------------|
 | F1 | Log dryer cycle + 22 hourly readings (clay body dried, chamber 1..40) | Operator | Dryer |
-| F2 | Register a wagon load (plate, product, operator, shift) — loads dried body from dryer | Operator | Setting |
+| F2 | Register a **Setting batch** (CHAMBER-CENTRIC): select a dryer chamber (1..40), then record the wagons fed from THAT chamber in one submit — each wagon: plate, glaze, start/end load time, packages, khesht. Batch = (date, shift, chamber, operator). Creates (or reuses) one `wagon_trip` per wagon **at load start**. | Operator | Setting | **After** Dryer; until the chamber is fully emptied its body goes only onto these wagons. If a wagon is partially filled when the chamber runs empty, it stays in the setting area and may receive additional fill from the **next** chamber's unload *before* it leaves for the waiting hall — that subsequent chamber's Setting batch reuses the **same** `wagon_trip` for that wagon (multiple `SettingWagon` rows, one trip). The number of chambers that contribute to one wagon in a single journey is **factory / product dependent, not hardcoded**. The wagon leaves for the waiting hall only when fully filled. After packing the trip completes; a future load for that wagon starts a **new** trip. |
 | F3 | Register a kiln push (1 wagon, 18 sensors) — wagon from waiting hall | Operator | Kiln |
 | F4 | Mark wagon discharge → awaiting-discharge list | Operator | Kiln exit |
 | F5 | Register packing (take 1+ wagons from awaiting-discharge) | Operator | Packing |
 | F6 | Dashboard: kiln tunnel occupancy (≤44) + waiting-hall + awaiting-discharge | Manager | all |
 | F7 | Dashboard: wagon journey trace (dryer → setting → waiting → kiln → packing) | Manager | `wagon` links |
 | F8 | Dashboard: daily counts + sensor trends | Manager | all |
+
+## 3b. Trip lifecycle (one trip per wagon per journey)
+
+A `WagonTrip` starts when a wagon is **first loaded** in the setting area and ends when
+that wagon is **packed** (product taken off). The trip is the spine of the wagon's journey
+(F7). The lifecycle:
+
+```
+[SETTING load starts] → in_progress  (trip_id assigned at first load)
+   → waiting_hall  (wagon full, awaiting kiln slot)
+   → [KILN push] → in_tunnel
+   → [KILN exit] → awaiting_discharge
+   → [PACKING] → completed
+```
+
+**One trip per wagon per journey.** A wagon moves to the waiting hall only when full.
+If a chamber runs empty before the wagon is full, the wagon stays in the setting area and
+the **next** chamber's unload can continue filling it — that subsequent Setting batch
+reuses the **same trip** (multiple `SettingWagon` rows, one trip). The number of chambers
+that contribute to one wagon in a single journey is **factory / product dependent, not
+hardcoded** (in the current roof-tile plant it is typically 1, occasionally 2).
+
+After the wagon is packed the trip is completed. Any later load of that same wagon
+(weeks later, next shift, next product) starts a **new trip**.
+
+**How the Setting form works:** the operator selects wagons by plate (not trip_id).
+`create_setting_batch` checks whether the wagon already has an active trip
+(`in_progress` / `body_dried` / `waiting_hall`). If yes → reuse it (multi-chamber
+fill within the same journey). If no → create a new trip. Operationally the operator
+does not manage trip IDs.
+
+> **Design principle (owner 2026-09-02):** do not hardcode a chamber count into the app
+> core. The model is `N` chambers per wagon-journey where `N` is determined by the physical
+> process of this factory or any future factory / product. The code must stay flexible.
 
 ## 4. API contract (v1, draft)
 
@@ -101,7 +135,7 @@ M5 docs (this file + ADR-0007) are **approved by owner** (2026-08-28). `M5_SRS.m
 
 ## 9. Implementation status (2026-09-02)
 
-**F1–F7 vertical slice + UI redesign complete.** The full F1 Dryer → F2 Setting → F3/F4 Kiln →
+**F1–F7 vertical slice + UI redesign complete.** The full F1 Dryer → F2 Setting → F3/F4 Kiln → 
 F5 Packing → F7 Wagon journey trace flow is built with a new dual-theme UI shell. PR
 [#1](https://github.com/motlagh20/productiondatabase/pull/1) (`m5-slice-build` → `m0-docs`).
 
@@ -118,6 +152,9 @@ F5 Packing → F7 Wagon journey trace flow is built with a new dual-theme UI she
   `wagon_journey` for F7. FIFO-44 push ceiling, exit_push_seq = entry_push_seq + 43, packing
   close with `select_for_update()` locking. All functions `@transaction.atomic`. Replay-safe
   via `client_token` UNIQUE on DryerCycle, SettingEvent, KilnPush, PackingHeader.
+  **`create_setting_batch` reuses an active trip for a wagon when one exists** (multi-chamber
+  fill within the same journey), else creates a new trip — one trip per wagon per journey,
+  chamber count not hardcoded.
 - **15 endpoints (7 GET + 6 POST + 2 derived):**
   - **Writes (auth required):** POST `dryer/cycles/`, `dryer/readings/`, `dryer/unload/`,
     `setting/events/`, `kiln/pushes/`, `packing/headers/`
@@ -132,8 +169,12 @@ F5 Packing → F7 Wagon journey trace flow is built with a new dual-theme UI she
 - **Historical replay (ETL layer, ADR-0008):** `replay_historical` replays all staging
   through real domain services at full historical volume (18,558 dryer cycles; ~20k setting
   events; ~38k pushes; ~93k packing wagons). `EtlReject` quarantines dirty rows.
-- **Demo slice (`make_demo_slice`):** copies a 1404 window into 1405, rebased so dashboards
-  show realistic live-edge activity (7 loaded chambers, 56 available wagons, active trips).
+- **Demo slice (`make_demo_slice`):** copies a 1399 window into the current Jalali year
+  (1405.xx.xx), rebased so dashboards show realistic live-edge activity. Trip-per-wagon model:
+  no duplicate trips per plate from the same run. **Guarantees exactly K distinct wagons in the
+  kiln tunnel** (K = `--wagons` flag, default 44 = full FIFO-44 capacity) with current dates,
+  refreshed by re-running daily — the window slides forward so "today" is always live.
+  `--clear` removes all demo rows before each build (idempotent).
 
 ### What was built — frontend (`frontend/`)
 React 19 + TypeScript + Vite + Tailwind v4. Persian RTL layout (`lang="fa" dir="rtl"`).

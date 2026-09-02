@@ -49,6 +49,28 @@ class RuleViolation(Exception):
     """Raised when a domain invariant would be broken (mapped to HTTP 409/400)."""
 
 
+def _active_trip_for_wagon(wagon):
+    """Return the wagon's active trip (in_progress .. awaiting_discharge) if it has
+    one, else None.
+
+    A wagon leaves the setting area only when it is full. After packing the trip
+    completes and the wagon is empty — a new load creates a new trip. If the wagon
+    is still in the setting/waiting area (same journey) and receives more fill from
+    another chamber, the existing trip is reused — the number of chambers that
+    contribute to one wagon is factory / product dependent, not hardcoded.
+    """
+    return (
+        WagonTrip.objects
+        .filter(wagon=wagon, status__in=[
+            WagonTrip.STATUS_IN_PROGRESS,
+            WagonTrip.STATUS_BODY_DRIED,
+            WagonTrip.STATUS_WAITING_HALL,
+        ])
+        .order_by('-trip_id')
+        .first()
+    )
+
+
 @transaction.atomic
 def create_setting_batch(*, chamber, wagons, client_token=None, **event_fields):
     """F2 (CHAMBER-CENTRIC): register a Setting batch for one dryer chamber, then 1..4 wagons
@@ -64,9 +86,12 @@ def create_setting_batch(*, chamber, wagons, client_token=None, **event_fields):
     event = SettingEvent.objects.create(chamber=chamber, client_token=client_token, **event_fields)
     for i, w in enumerate(wagons, start=1):
         wagon = w.pop('wagon')
-        trip = WagonTrip.objects.create(
-            wagon=wagon, status=WagonTrip.STATUS_IN_PROGRESS, source_module='setting',
-        )
+        trip = _active_trip_for_wagon(wagon)
+        if trip is None:
+            trip = WagonTrip.objects.create(
+                wagon=wagon, status=WagonTrip.STATUS_IN_PROGRESS,
+                source_module='setting',
+            )
         SettingWagon.objects.create(
             setting_event=event, wagon=wagon, trip=trip, position_in_event=i, **w,
         )
