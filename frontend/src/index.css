@@ -1,11 +1,16 @@
-/* Persian / RTL base. Vazirmatn is the project's Persian UI face (frozen-app
-   design language, harvested per ADR-0004 — patterns only, no code merge).
+/* Persian / RTL base + dual theme (factory-floor light / control-room dark).
+   Vazirmatn is the project's Persian UI face (frozen-app design language,
+   harvested per ADR-0004 — patterns only, no code merge).
    Both @import rules must precede every other rule. */
 @import url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css');
 @import 'tailwindcss';
 
+/* Tailwind v4 CSS-first dark mode: driven by a `dark` class on <html>. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: 'Vazirmatn', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', monospace;
   --color-kiln: oklch(0.62 0.19 35);
   --color-setting: oklch(0.58 0.14 250);
   --color-packing: oklch(0.6 0.15 155);
@@ -19,8 +24,12 @@ body,
 
 body {
   font-family: var(--font-sans);
-  background-color: oklch(0.98 0.005 250);
-  color: oklch(0.25 0.02 250);
+  @apply bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100;
+}
+
+/* Latin layouts drop the Persian face for a tighter western stack. */
+[dir='ltr'] body {
+  font-family: ui-sans-serif, system-ui, 'Segoe UI', sans-serif;
 }
 
 /* Numeric inputs keep LTR digits inside an RTL layout. */
@@ -28,4 +37,42 @@ input[type='number'],
 input[type='time'] {
   direction: ltr;
   text-align: right;
+}
+
+/* Aligned columns for the reading/temperature grids. */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Scrollbars tuned per theme — the dark one is low-glare for control-room monitors. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #e2e8f0;
+}
+::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+.dark ::-webkit-scrollbar-track {
+  background: #090d16;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #232d3f;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #384660;
+}
+
+/* Horizontal mobile nav strip: scrollable but chrome-free. */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
 }

@@ -99,82 +99,65 @@ Base `/api/`. Django REST Framework, token auth.
 M5 docs (this file + ADR-0007) are **approved by owner** (2026-08-28). `M5_SRS.md` (expand §3),
 `M5_API_CONTRACT.md` (expand §4) drafted; Django models + React scaffold built (2026-08-29).
 
-## 9. Implementation status (2026-08-29)
+## 9. Implementation status (2026-09-02)
 
-The first **thin vertical slice** is built: F2 Setting load → F3 Kiln push → F4 Kiln exit →
-F5 Packing → F7 Wagon journey trace. 50 files, +5622 lines in `backend/` and `frontend/`.
-PR [#1](https://github.com/motlagh20/productiondatabase/pull/1) (`m5-slice-build` → `m0-docs`).
+**F1–F7 vertical slice + UI redesign complete.** The full F1 Dryer → F2 Setting → F3/F4 Kiln →
+F5 Packing → F7 Wagon journey trace flow is built with a new dual-theme UI shell. PR
+[#1](https://github.com/motlagh20/productiondatabase/pull/1) (`m5-slice-build` → `m0-docs`).
 
-### What was built
-- **Backend (`backend/`):** Django 6.1 + DRF project, single `mes` app. Two PostgreSQL DB
-  aliases — `default` → `mes_app` (Django-owned, migrations) + `staging` → historical
-  source (read-only, DB router prevents writes). TokenAuthentication + CORS for Vite.
+### What was built — backend (`backend/`)
+- **Django 6.1 + DRF**, single `mes` app. Two PostgreSQL DB aliases — `default` → `mes_app`
+  (Django-owned, migrations) + `staging` → historical source (read-only, DB router prevents
+  writes). TokenAuthentication + CORS for Vite.
 - **Models:** 6 dimension tables (Operator, Chamber, Product, Glaze, Wagon, KilnSensor) +
-  7 spine/fact tables (WagonTrip with 8-state machine, SettingLoad, KilnPush, KilnReading,
-  KilnExit, PackingHeader, PackingWagon).
-- **Service layer (`mes/services.py`):** trip assignment, FIFO-44 push ceiling, exit_push_seq
-  = entry_push_seq + 43, packing close with `select_for_update()` locking. All functions
-  `@transaction.atomic`. Replay-safe via `client_token` UNIQUE on SettingLoad, KilnPush,
-  PackingHeader.
-- **Endpoints:** 5 write (setting loads, kiln pushes/exits, packing headers) + 1 journey read
-  + 6 dimension dropdowns + 1 awaiting-discharge list + 1 auth token obtain. All behind
-  `IsAuthenticated`.
+  8 spine/fact tables (WagonTrip with 8-state machine, SettingEvent, SettingWagon,
+  DryerCycle, DryerReading, KilnPush, KilnReading, KilnExit, PackingHeader, PackingWagon)
+  + `ChamberState` control table.
+- **Service layer (`mes/services.py`):** `create_dryer_cycle`, `append_dryer_reading`,
+  `unload_dryer_chamber`, `create_setting_batch`, `push_wagon`, `register_packing`, plus
+  `wagon_journey` for F7. FIFO-44 push ceiling, exit_push_seq = entry_push_seq + 43, packing
+  close with `select_for_update()` locking. All functions `@transaction.atomic`. Replay-safe
+  via `client_token` UNIQUE on DryerCycle, SettingEvent, KilnPush, PackingHeader.
+- **15 endpoints (7 GET + 6 POST + 2 derived):**
+  - **Writes (auth required):** POST `dryer/cycles/`, `dryer/readings/`, `dryer/unload/`,
+    `setting/events/`, `kiln/pushes/`, `packing/headers/`
+  - **Reads (auth required):** GET `dryer/chambers/status/`, `dryer/cycles/list/`,
+    `setting/events/list/`, `kiln/pushes/list/`, `dashboard/wagon-journey/`,
+    `dashboard/awaiting-discharge/`, `dashboard/active-wagons/`
+  - **Dimension dropdowns (public — AllowAny):** GET `dimensions/{operators,products,glazes,
+    chambers,wagons,sensors}/`; `chamber_list` supports `?loaded=true|false`, `wagon_list`
+    supports `?available=true`.
 - **Dimension seeding:** `seed_dimensions` management command reads staging once via raw SQL;
-  idempotent `update_or_create`. Wagon filter enforces clean-core 1..80 range at the seed
-  boundary.
-- **Historical replay (ETL layer, ADR-0008):** `replay_historical` management command reads
-  staging (`dryer_cycle`+`dryer_reading` → `setting_event`+`setting_wagon` → `kiln_push`+`kiln_wagon`
-  → `packing_header`+`packing_wagon`) and re-creates the full trip spine in the app via the
-  **real domain services** (`create_dryer_cycle` / `create_setting_batch` / `push_wagon` /
-  `register_packing`) — so F1→F5, FIFO-44, the 44-capacity ceiling, and the journey state
-  machine are exercised at real volume (18,558 dryer cycles; ~20k setting events; ~38k pushes;
-  ~93k packing wagons). Dirty history is **not** admitted: any row whose `wagon_no` is NULL or
-  outside 1..80, or whose chamber/operator FK is missing, is written to the app's `EtlReject`
-  table (module, source_row, reason, raw) for human adjudication against the paper ledgers.
-  Replay is idempotent via deterministic UUID `client_token`s derived from staging source keys.
-  This is the missing "hard 30%": the app is now load-tested against real historical shape,
-  not just synthetic single-trip tests.
-- **Demo slice (`make_demo_slice`):** because the historical snapshot stops at ~1404, every trip
-  is `completed` and the live dashboards (in-tunnel wagons, awaiting-discharge, occupancy) are
-  empty. This command copies a genuinely-populated historical window (1399.03.08..1399.06.08,
-  which has data in ALL modules) and rebases it to **1405.03.08..1405.06.08** (near "today"
-  1405.06.08), leaving the tail in a live (`in_progress` / `in_tunnel` / `awaiting_discharge`)
-  state so management dashboards show realistic near-current activity. Replay-safe via
-  `demo:`-namespaced client_tokens; `--clear` removes the slice. Original archive untouched.
-- **ETL verified result (full replay of all historical staging):**
-  - setting: **11,120** events loaded, 13,245 rejected (dirty `wagon_no` NULL/>80 — expected).
-  - kiln: **31,301** pushes loaded, 7,525 rejected (orphan pushes for wagons whose setting
-    batch was dirty → no trip existed; correctly quarantined).
-  - packing: **3,181** headers loaded, 55,324 wagon-rows rejected (orphans whose upstream trip
-    was rejected, plus a few duplicate historical packing rows caught by `register_packing`'s
-    completed-trip guard).
-  - Spine outcome: **31,301 WagonTrip**, all `completed`; 31,301 KilnExit (all discharged);
-    0 wagons stuck in tunnel / awaiting-discharge. **Peak tunnel occupancy = 43** (never
-    exceeds the 44-wagon physical ceiling — FIFO-44 confirmed against real data; the apparent
-    "153" at the tail of the sequence is purely the 110 unexited end-of-file wagons still in
-    the tunnel when the ledger was snapped, not a capacity violation).
-  - Lesson learned: pushes and exits MUST be interleaved on one sequence-ordered timeline;
-    running all pushes before any exit fills the 44-wagon tunnel and jams (false "tunnel full"
-    rejects). Fixed in `replay_historical` stage 2.
-- **ChamberState control table (`ChamberState`):** point-in-time "is this chamber loaded?"
-  flag, NOT derivable from a whole-history aggregate (a chamber stays loaded 1-2+ days
-  while the body dries). `create_dryer_cycle` sets `is_loaded=true`; `create_setting_batch`
-  (discharge) sets `is_loaded=false`. Seeded from each chamber's LAST event by date via
-  `seed_chamber_states` (last dryer cycle -> loaded; last setting -> empty). The Setting
-  form requests `?loaded=true` so operators only pick chambers that are actually full.
-- **Filtered form dropdowns (clean-core + fewer mis-entries):** `chamber_list` supports
-  `?loaded=true|false`; `wagon_list` supports `?available=true` (wagon whose LAST trip is
-  completed/none — i.e. free to load). The Setting form fetches only loaded chambers and
-  available wagons, so the dropdowns are sparse and self-validating.
-- **Demo slice fix:** `make_demo_slice` now auto-clears prior 1405 rows (by date prefix, not
-  token) before rebuilding, so repeated runs are idempotent and actually create wagons/trips.
-  Result: a realistic live edge — 7 chambers loaded, 56 wagons available, 35 active trips —
-  instead of an all-completed or all-busy blob.
-- **Frontend (`frontend/`):** React 19 + TypeScript + Vite + Tailwind v4. Persian RTL layout
-  (Vazirmatn font, `lang="fa" dir="rtl"`). Pages: Login, SettingLoadForm, KilnPushForm (18
-  sensors), KilnExitForm, PackingForm (multi-wagon from awaiting-discharge), JourneyPage
-  (per-plate timeline). Axios + Token auth, Jalali date helpers, clean-core dropdowns.
+  idempotent `update_or_create`. Wagon filter enforces clean-core 1..80 range.
+- **Historical replay (ETL layer, ADR-0008):** `replay_historical` replays all staging
+  through real domain services at full historical volume (18,558 dryer cycles; ~20k setting
+  events; ~38k pushes; ~93k packing wagons). `EtlReject` quarantines dirty rows.
+- **Demo slice (`make_demo_slice`):** copies a 1404 window into 1405, rebased so dashboards
+  show realistic live-edge activity (7 loaded chambers, 56 available wagons, active trips).
+
+### What was built — frontend (`frontend/`)
+React 19 + TypeScript + Vite + Tailwind v4. Persian RTL layout (`lang="fa" dir="rtl"`).
+Dual-theme shell (`ui.tsx` components, light/dark toggle). 10 pages on `App.tsx` lazy routes:
+
+| Page | Module | Key features |
+|------|--------|-------------|
+| `LoginPage` | Auth | Theme toggle + language switch, gradient brand square |
+| `DryerDashboard` | F1 | 3-state chamber card grid (empty/drying/dried), quick-reading modal |
+| `DryerLoadForm` | F1 | Empty-chamber select, `postDryerCycle`, recent-loads table |
+| `DryerReadingsForm` | F1 | Chamber select, `postDryerReading`, recharts line chart |
+| `DryerUnloadForm` | F1 | Unloadable-chamber select, `postDryerUnload`, completed-cycles table |
+| `SettingEntryForm` | F2 | Loaded-chamber select, event-level product, 1–4 wagons add/remove |
+| `SettingLog` | F2 | Searchable/filterable event table, expandable wagon rows, CSV export |
+| `KilnPushForm` | F3 | Active-wagon select, 18-sensor grid, push history table |
+| `PackingForm` | F5 | Awaiting-discharge checkbox picker, shift/worker count, per-wagon grades |
+| `JourneyPage` | F7 | Plate search → trip cards with 4-stage timeline |
+
+**Design:** `ui.tsx` exports shared primitives (`PageHeader`, `Panel`, `Field`, `TextInput`,
+`SelectInput`, `Banner`, `SubmitButton`, `PanelTitle`, table CSS). `Navbar` (sidebar) links
+all pages with Arabic numerals. `i18n/` holds 131 FA/EN keys via `useUI().t`.
+`JalaliDatePicker` wraps PersianDatePicker for `YYYY.MM.DD` Jalali input. Axios client
+attaches `Token` from `localStorage` on every request.
 
 ### Deferred (not this slice)
-- F1 Dryer cycle, F6 occupancy dashboard, F8 daily counts, F9 dimension CRUD, F10 correction
-  workflow, N1 offline queue, per-role route guards, waiting-hall temperature logging.
+- F8 daily counts + sensor trend charts, F9 dimension CRUD, F10 correction workflow,
+  N1 offline queue, per-role route guards, waiting-hall temperature logging.

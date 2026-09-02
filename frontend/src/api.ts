@@ -109,6 +109,108 @@ export const fetchJourney = (plate: string) =>
     .get<{ plate: string; trips: JourneyStage[] }>('/dashboard/wagon-journey/', { params: { plate } })
     .then((r) => r.data)
 
+// --- New list/status endpoints (UI merge) ---
+export interface DryerReadingData {
+  hour_offset: number
+  humidity_pct: string | null
+  temperature_c: string | null
+}
+
+export interface DryerCycleData {
+  dryer_cycle_id: number
+  chamber_code: string
+  load_date: string
+  load_time: string | null
+  unload_date: string
+  unload_time: string | null
+  product_name: string
+  finger_count: number | null
+  readings: DryerReadingData[]
+  created_at: string
+}
+
+export interface DryerChamberStatus {
+  chamber_id: number
+  chamber_code: string
+  chamber_type: string
+  is_loaded: boolean
+  derived_status: 'empty' | 'drying' | 'dried'
+  current_cycle: {
+    dryer_cycle_id: number
+    load_date: string
+    load_time: string | null
+    product_name: string
+    finger_count: number | null
+    unload_date: string
+    unload_time: string | null
+    latest_reading: { hour_offset: number; temperature_c: string | null; humidity_pct: string | null } | null
+  } | null
+}
+
+export interface SettingWagonData {
+  plate: string
+  glaze_code: string
+  start_time: string | null
+  end_time: string | null
+  packages: number | null
+  khesht_count: number | null
+  trip_id: number
+}
+
+export interface SettingEventData {
+  setting_event_id: number
+  date_jalali: string
+  shift: number | null
+  chamber_code: string
+  product_name: string
+  supervisor_name: string
+  operator_name: string
+  personnel_count: number | null
+  fingers_count: number | null
+  columns_count: number | null
+  dryer_waste: string | null
+  wagons: SettingWagonData[]
+  created_at: string
+}
+
+export interface KilnReadingData {
+  sensor_code: string
+  temperature_c: string | null
+}
+
+export interface KilnPushData {
+  kiln_push_id: number
+  push_seq: number
+  plate: string
+  push_date: string
+  push_time: string | null
+  shift: number | null
+  operator_name: string
+  product_name: string
+  exit_push_seq: number | null
+  discharged: boolean
+  readings: KilnReadingData[]
+  created_at: string
+}
+
+export const fetchDryerChamberStatus = () =>
+  api.get<DryerChamberStatus[]>('/dryer/chambers/status/').then((r) => r.data)
+
+export const fetchDryerCycles = (chamberId?: number) =>
+  api.get<DryerCycleData[]>('/dryer/cycles/list/' + (chamberId ? `?chamber_id=${chamberId}` : '')).then((r) => r.data)
+
+export const fetchSettingEvents = () =>
+  api.get<SettingEventData[]>('/setting/events/list/').then((r) => r.data)
+
+export const fetchKilnPushes = () =>
+  api.get<KilnPushData[]>('/kiln/pushes/list/').then((r) => r.data)
+
+export const postDryerReading = (payload: { chamber_id: number; temperature_c?: number; humidity_pct?: number; hour_offset?: number }) =>
+  api.post('/dryer/readings/', { ...payload, client_token: newClientToken() }).then((r) => r.data)
+
+export const postDryerUnload = (payload: { chamber_id: number; unload_date?: string; unload_time?: string; unload_operator_id?: number; finger_count?: number }) =>
+  api.post('/dryer/unload/', { ...payload, client_token: newClientToken() }).then((r) => r.data)
+
 export function apiErrorMessage(err: unknown): string {
   if (axios.isAxiosError(err)) {
     const data = err.response?.data as Record<string, unknown> | undefined

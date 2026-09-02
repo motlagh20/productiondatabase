@@ -75,5 +75,11 @@ xls/consolidated/
 # Legacy DB backups (local only, never commit)
 .db_backup_kiln/
 
+# Design system local state (internal, never commit)
+.freebuff/
+
+# UI redesign prototype (read-only reference donor — merged into frontend/, not committed)
+kiln-mes-prototype/
+
 # Local archive of superseded prototype CSVs (zipped, not tracked)
 xls/archive/

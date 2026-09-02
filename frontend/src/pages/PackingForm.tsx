@@ -1,5 +1,7 @@
 /** F5: register a packing session over 1+ awaiting-discharge trips → each trip completed. */
 import { useEffect, useState } from 'react'
+import { Package } from 'lucide-react'
+
 import {
   apiErrorMessage,
   fetchAwaitingDischarge,
@@ -10,9 +12,10 @@ import {
   type Operator,
   type Product,
 } from '../api'
-import { Banner, Card, Field, Select, SubmitButton } from '../components/Form'
+import { useUI } from '../context/UIContext'
+import { Banner, Field, PageHeader, Panel, SelectInput, SubmitButton, TextInput } from '../components/ui'
 import JalaliDatePicker from '../components/JalaliDatePicker'
-import { toJalali } from '../jalali'
+import { SHIFTS, todayJalali } from '../jalali'
 
 interface WagonRow {
   trip_id: number
@@ -25,11 +28,14 @@ interface WagonRow {
 }
 
 export default function PackingForm() {
+  const { t } = useUI()
   const [awaiting, setAwaiting] = useState<AwaitingTrip[]>([])
   const [operators, setOperators] = useState<Operator[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [controllerId, setControllerId] = useState('')
-  const [packDate, setPackDate] = useState(toJalali(new Date()))
+  const [shift, setShift] = useState('')
+  const [workerCount, setWorkerCount] = useState('')
+  const [packDate, setPackDate] = useState(todayJalali())
   const [selected, setSelected] = useState<Record<number, WagonRow>>({})
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<string | null>(null)
@@ -69,19 +75,23 @@ export default function PackingForm() {
     setSelected((prev) => ({ ...prev, [tripId]: { ...prev[tripId], [field]: value } }))
   }
 
+  const shiftLabel = (v: number) => (v === 1 ? t.shift_morning : v === 2 ? t.shift_evening : t.shift_night)
+
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
     setResult(null)
     const rows = Object.values(selected)
     if (rows.length === 0) {
-      setError('حداقل یک واگن از لیست تخلیه انتخاب کنید.')
+      setError(t.error_msg)
       return
     }
     setBusy(true)
     try {
       const payload = {
         pack_date: packDate,
+        shift: shift ? Number(shift) : null,
+        worker_count: workerCount ? Number(workerCount) : null,
         controller_id: controllerId ? Number(controllerId) : null,
         wagons: rows.map((r) => ({
           trip_id: r.trip_id,
@@ -93,7 +103,7 @@ export default function PackingForm() {
         })),
       }
       const data = await postPacking(payload)
-      setResult(`بسته‌بندی ثبت شد (شناسه ${data.packing_header_id}). ${rows.length} سفر تکمیل شد.`)
+      setResult(`${t.success_msg} (${t.pack_title}) → #${data.packing_header_id}`)
       setSelected({})
       reload()
     } catch (err) {
@@ -103,71 +113,98 @@ export default function PackingForm() {
     }
   }
 
-  const numClass =
-    'w-24 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100'
-
   return (
-    <Card title="بسته‌بندی" subtitle="یک یا چند واگن از لیست تخلیه را انتخاب و درجه‌بندی کنید — سفر بسته می‌شود.">
-      <form onSubmit={submit} className="flex flex-col gap-4">
-        <Field label="کنترلر">
-          <Select
-            value={controllerId}
-            onChange={setControllerId}
-            options={operators.map((o) => ({ value: o.operator_id, label: o.full_name || o.operator_code }))}
-          />
-        </Field>
-        <Field label="تاریخ بسته‌بندی">
-          <JalaliDatePicker value={packDate} onChange={(v) => setPackDate(v ?? '')} placeholder="انتخاب تاریخ" />
-        </Field>
+    <div className="flex flex-col gap-5">
+      <PageHeader icon={Package} title={t.pack_title} subtitle={t.app_title} color="emerald" />
 
-        {awaiting.length === 0 ? (
-          <Banner kind="error">لیست تخلیه خالی است. ابتدا یک واگن باید از کوره عبور کرده باشد (خروج اتوماتیک محاسبه می‌شود).</Banner>
-        ) : (
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-medium text-slate-700">واگن‌های در انتظار تخلیه</span>
-            <div className="flex flex-col gap-2">
-              {awaiting.map((t) => {
-                const row = selected[t.trip_id]
-                return (
-                  <div key={t.trip_id} className="rounded-lg border border-slate-200 p-3">
-                    <label className="flex items-center gap-2">
-                      <input type="checkbox" checked={!!row} onChange={() => toggle(t)} />
-                      <span className="text-sm font-medium">
-                        سفر {t.trip_id} — پلاک {t.plate}
-                      </span>
-                    </label>
-                    {row && (
-                      <div className="mt-3 flex flex-wrap gap-3 ps-6">
-                        <Select
-                          value={row.product_id}
-                          onChange={(v) => patch(t.trip_id, 'product_id', v)}
-                          options={products.map((p) => ({
-                            value: p.product_id,
-                            label: p.product_name_setting || String(p.product_id),
-                          }))}
-                          placeholder="محصول"
-                        />
-                        <input className={numClass} placeholder="کل" inputMode="numeric"
-                          value={row.total_count} onChange={(e) => patch(t.trip_id, 'total_count', e.target.value)} />
-                        <input className={numClass} placeholder="درجه ۱" inputMode="numeric"
-                          value={row.grade1_count} onChange={(e) => patch(t.trip_id, 'grade1_count', e.target.value)} />
-                        <input className={numClass} placeholder="درجه ۲" inputMode="numeric"
-                          value={row.grade2_count} onChange={(e) => patch(t.trip_id, 'grade2_count', e.target.value)} />
-                        <input className={numClass} placeholder="ضایعات" inputMode="numeric"
-                          value={row.waste_count} onChange={(e) => patch(t.trip_id, 'waste_count', e.target.value)} />
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
+      {result && <Banner kind="ok">{result}</Banner>}
+      {error && <Banner kind="error">{error}</Banner>}
+
+      <Panel className="p-6">
+        <form onSubmit={submit} className="flex flex-col gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Field label={t.pack_date} required>
+              <JalaliDatePicker value={packDate} onChange={(v) => setPackDate(v ?? '')} placeholder="YYYY.MM.DD" />
+            </Field>
+            <Field label={t.controller}>
+              <SelectInput value={controllerId} onChange={(e) => setControllerId(e.target.value)}>
+                <option value="">—</option>
+                {operators.map((o) => (
+                  <option key={o.operator_id} value={o.operator_id}>
+                    {o.full_name || o.operator_code}
+                  </option>
+                ))}
+              </SelectInput>
+            </Field>
+            <Field label={t.shift}>
+              <SelectInput value={shift} onChange={(e) => setShift(e.target.value)}>
+                <option value="">—</option>
+                {SHIFTS.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {shiftLabel(s.value)}
+                  </option>
+                ))}
+              </SelectInput>
+            </Field>
+            <Field label={t.worker_count}>
+              <TextInput type="number" value={workerCount} onChange={(e) => setWorkerCount(e.target.value)} inputMode="numeric" />
+            </Field>
           </div>
-        )}
 
-        <SubmitButton busy={busy}>ثبت بسته‌بندی</SubmitButton>
-        {result && <Banner kind="ok">{result}</Banner>}
-        {error && <Banner kind="error">{error}</Banner>}
-      </form>
-    </Card>
+          {awaiting.length === 0 ? (
+            <Banner kind="info">{t.no_awaiting_wagon}</Banner>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t.awaiting_discharge}</span>
+              <div className="flex flex-col gap-2">
+                {awaiting.map((w) => {
+                  const row = selected[w.trip_id]
+                  return (
+                    <div key={w.trip_id} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={!!row} onChange={() => toggle(w)} className="accent-emerald-600" />
+                        <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                          {t.trip_id} {w.trip_id} — {t.wagon_no} {w.plate}
+                        </span>
+                      </label>
+                      {row && (
+                        <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 ps-6">
+                          <Field label={t.product_select}>
+                            <SelectInput value={row.product_id} onChange={(e) => patch(w.trip_id, 'product_id', e.target.value)}>
+                              <option value="">—</option>
+                              {products.map((p) => (
+                                <option key={p.product_id} value={p.product_id}>
+                                  {p.product_name_setting || `#${p.product_id}`}
+                                </option>
+                              ))}
+                            </SelectInput>
+                          </Field>
+                          <Field label={t.total_count}>
+                            <TextInput type="number" value={row.total_count} onChange={(e) => patch(w.trip_id, 'total_count', e.target.value)} inputMode="numeric" />
+                          </Field>
+                          <Field label={t.grade1}>
+                            <TextInput type="number" value={row.grade1_count} onChange={(e) => patch(w.trip_id, 'grade1_count', e.target.value)} inputMode="numeric" />
+                          </Field>
+                          <Field label={t.grade2}>
+                            <TextInput type="number" value={row.grade2_count} onChange={(e) => patch(w.trip_id, 'grade2_count', e.target.value)} inputMode="numeric" />
+                          </Field>
+                          <Field label={t.rejects}>
+                            <TextInput type="number" value={row.waste_count} onChange={(e) => patch(w.trip_id, 'waste_count', e.target.value)} inputMode="numeric" />
+                          </Field>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          <SubmitButton busy={busy} color="emerald">
+            {t.submit_pack}
+          </SubmitButton>
+        </form>
+      </Panel>
+    </div>
   )
 }

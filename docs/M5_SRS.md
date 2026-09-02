@@ -1,8 +1,9 @@
 # M5_SRS — Software Requirements Specification
 
 > Companion to [M5_PLATFORM_PLAN.md](M5_PLATFORM_PLAN.md) and [ADR-0007](adr/ADR-0007-application-architecture-m5.md).
-> Status: **Approved + partially implemented.** The F2→F7 vertical slice is built
-> (2026-08-29, see [M5_PLATFORM_PLAN §9](M5_PLATFORM_PLAN.md)); F1/F6/F8/F9/F10 remain specified but deferred.
+> Status: **Approved + implemented through F7.** F1–F7 vertical slice + UI redesign
+> complete (2026-09-02, see [M5_PLATFORM_PLAN §9](M5_PLATFORM_PLAN.md)); F6/F8/F9/F10
+> remain specified but deferred.
 
 ## 1. Introduction
 
@@ -137,13 +138,21 @@ Tables owned by Django migrations (not the staging load):
 
 ## 6. API contract (summary — full version in M5_API_CONTRACT.md)
 
-Base `/api/`, DRF, token auth.
-- `POST /api/dryer/cycles/` (F1), `POST /api/setting/events/` (F2, chamber batch)
+Base `/api/`, DRF, token auth. Dimension endpoints are public (`AllowAny`).
+- `POST /api/dryer/cycles/` (F1 — create cycle + readings)
+- `POST /api/dryer/readings/` (F1 — append one hourly reading to active cycle)
+- `POST /api/dryer/unload/` (F1 — complete unload on active cycle)
+- `POST /api/setting/events/` (F2, chamber-centric batch)
 - `POST /api/kiln/pushes/` (F3; kiln exit auto-derived, no F4 endpoint)
 - `POST /api/packing/headers/` (F5, full grades)
-- `GET /api/dashboard/wagon-journey/?plate=` → `[setting, kiln_entry, kiln_exit, packing]` (F7)
-- `GET /api/dashboard/wagon-journey/?plate=<name>` → full trip timeline
-- `GET /api/dashboard/daily-counts/?from=&to=`
+- `GET /api/dashboard/wagon-journey/?plate=` → trip timeline (F7)
+- `GET /api/dashboard/awaiting-discharge/` → trips ready to pack (F5)
+- `GET /api/dashboard/active-wagons/` → wagons with active trip (F3)
+- `GET /api/dryer/chambers/status/` → per-chamber status (F1 dashboard)
+- `GET /api/dryer/cycles/list/?chamber_id=&limit=` → cycle list (F1 log)
+- `GET /api/setting/events/list/?limit=` → event list (F2 log)
+- `GET /api/kiln/pushes/list/?limit=` → push list (F3 log)
+- `GET /api/dimensions/{operators,products,glazes,chambers,wagons,sensors}/` (F9 GET only)
 
 ## 7. Out-of-scope (this milestone)
 - Multi-factory tenancy internals (config-only for now)
