@@ -312,7 +312,15 @@ def operator_list(request):
 @api_view(['GET'])
 @permission_classes([PUBLIC])
 def product_list(request):
-    return Response(ProductOut(Product.objects.all(), many=True).data)
+    """Products. ?chamber_id= -> only products used with that chamber (derived from
+    historical setting_event data). No param -> all products."""
+    qs = Product.objects.all()
+    chamber_id = request.query_params.get('chamber_id')
+    if chamber_id:
+        qs = qs.filter(
+            settingevent__chamber_id=chamber_id
+        ).distinct()
+    return Response(ProductOut(qs, many=True).data)
 
 
 @api_view(['GET'])

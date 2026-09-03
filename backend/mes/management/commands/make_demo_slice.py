@@ -30,6 +30,7 @@ import uuid
 import django
 from django.core.management.base import BaseCommand
 from django.db import connections, models, transaction
+from django.db.models import Max
 from django.utils import timezone
 
 import jdatetime
@@ -37,6 +38,7 @@ import jdatetime
 from mes import services
 from mes.models import (
     Chamber,
+    ChamberState,
     DryerCycle,
     DryerReading,
     Glaze,
@@ -419,6 +421,60 @@ class Command(BaseCommand):
                 t.completed_at = timezone.now()
                 t.save(update_fields=["status", "completed_at"])
                 completed += 1
+
+        # ================================================================== #
+        #  ENSURE ONE CHAMBER IS LOADED (drying dashboard not empty)         #
+        #  All rebased dryer cycles got discharged by setting batches above.  #
+        #  Force one chamber to show as "loaded" so the dryer dashboard has   #
+        #  at least one active chamber.                                       #
+        # ================================================================== #
+        # Find a chamber whose last cycle was unloaded, then mark it loaded
+        today_str = TGT_HI_STR
+        last_loaded = (
+            DryerCycle.objects
+            .filter(unload_date__isnull=False)
+            .order_by('-dryer_cycle_id')
+            .first()
+        )
+        if last_loaded:
+            chamber_obj = last_loaded.chamber
+            # Create a fresh dryer cycle loaded today, no unload
+            # Use direct DB creation (no service call) to avoid triggering
+            # create_setting_batch which would discharge the chamber.
+            try:
+                live_cycle = DryerCycle.objects.create(
+                    chamber=chamber_obj,
+                    load_date=today_str,
+                    load_time="08:00:00",
+                    unload_date='',
+                    unload_time=None,
+                    load_operator_id=8,  # DR27879
+                    unload_operator_id=None,
+                    product_id=next(iter(products.values())).product_id if products else None,
+                    finger_count=64,
+                    source_row=int(chamber_obj.chamber_id) if chamber_obj.chamber_id else None,
+                )
+                # Direct DB update of ChamberState (avoid service call that might fail)
+                state, _ = ChamberState.objects.get_or_create(chamber=chamber_obj)
+                state.is_loaded = True
+                state.current_dryer_cycle = live_cycle
+                state.current_setting_event = None
+                from django.utils import timezone
+                state.loaded_at = timezone.now()
+                state.save(update_fields=["is_loaded", "current_dryer_cycle", "current_setting_event", "loaded_at"])
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Live dryer: chamber {chamber_obj.chamber_code} loaded today "
+                        f"({today_str}), cycle={live_cycle.dryer_cycle_id}, not yet unloaded."
+                    )
+                )
+            except Exception as e:  # noqa: BLE001
+                import traceback
+                self.stdout.write(
+                    self.style.ERROR(
+                        f"Failed to create live dryer cycle: {e}\n{traceback.format_exc()}"
+                    )
+                )
 
         in_tunnel_final = WagonTrip.objects.filter(
             status=WagonTrip.STATUS_IN_TUNNEL

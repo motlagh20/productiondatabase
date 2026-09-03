@@ -49,6 +49,7 @@ export default function SettingEntryForm() {
   const [chambers, setChambers] = useState<Chamber[]>([])
   const [operators, setOperators] = useState<Operator[]>([])
   const [products, setProducts] = useState<Product[]>([])
+  const [chamberProducts, setChamberProducts] = useState<Product[]>([])
   const [glazes, setGlazes] = useState<Glaze[]>([])
 
   const loadedDryerChambers = chambers.filter((c) => c.chamber_type === 'DRYER')
@@ -80,6 +81,17 @@ export default function SettingEntryForm() {
       })
       .catch((e) => setError(apiErrorMessage(e)))
   }, [])
+
+  // When chamber changes, fetch only that chamber's products
+  useEffect(() => {
+    if (!chamberId) {
+      setChamberProducts([])
+      return
+    }
+    fetchProducts(Number(chamberId))
+      .then(setChamberProducts)
+      .catch((e) => setError(apiErrorMessage(e)))
+  }, [chamberId])
 
   const shiftLabel = (value: number) => (value === 1 ? t.shift_morning : value === 2 ? t.shift_evening : t.shift_night)
 
@@ -205,7 +217,7 @@ export default function SettingEntryForm() {
             <Field label={t.product_select}>
               <SelectInput value={productId} onChange={(e) => setProductId(e.target.value)}>
                 <option value="">—</option>
-                {products.map((p) => (
+                {chamberProducts.map((p) => (
                   <option key={p.product_id} value={p.product_id}>
                     {p.product_name_setting || `#${p.product_id}`}
                   </option>

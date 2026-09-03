@@ -53,7 +53,8 @@ export const fetchWagons = (available = false) =>
 export const fetchChambers = (loaded = false) =>
   api.get<Chamber[]>('/dimensions/chambers/' + (loaded ? '?loaded=true' : '')).then((r) => r.data)
 export const fetchOperators = () => api.get<Operator[]>('/dimensions/operators/').then((r) => r.data)
-export const fetchProducts = () => api.get<Product[]>('/dimensions/products/').then((r) => r.data)
+export const fetchProducts = (chamberId?: number) =>
+  api.get<Product[]>('/dimensions/products/' + (chamberId != null ? `?chamber_id=${chamberId}` : '')).then((r) => r.data)
 export const fetchGlazes = () => api.get<Glaze[]>('/dimensions/glazes/').then((r) => r.data)
 export const fetchSensors = () => api.get<Sensor[]>('/dimensions/sensors/').then((r) => r.data)
 export const fetchAwaitingDischarge = () =>
