@@ -5,6 +5,8 @@ isolation and reused by any caller. Rules are enforced positively — clean data
 no Excel-era typo tolerance (ADR-0008).
 """
 from django.db import transaction
+from django.db.models import F
+from django.db.models.functions import Now
 
 from .models import (
     ChamberState,
@@ -77,24 +79,38 @@ def create_setting_batch(*, chamber, wagons, client_token=None, **event_fields):
     fed from THAT chamber. Each wagon gets its own trip at load START.
     `wagons` = list of {wagon, glaze?, start_time?, end_time?, packages?, khesht_count?}.
     Replay-safe: a repeated client_token returns the original event unchanged.
-    """
+    Also updates the trip denormalized summary: wagon_plate, chamber_codes, total_weight."""
     if client_token is not None:
         existing = SettingEvent.objects.filter(client_token=client_token).first()
         if existing is not None:
             return existing
 
     event = SettingEvent.objects.create(chamber=chamber, client_token=client_token, **event_fields)
+    chamber_code = chamber.chamber_code
     for i, w in enumerate(wagons, start=1):
         wagon = w.pop('wagon')
         trip = _active_trip_for_wagon(wagon)
+        was_existing = trip is not None
         if trip is None:
             trip = WagonTrip.objects.create(
                 wagon=wagon, status=WagonTrip.STATUS_IN_PROGRESS,
-                source_module='setting',
+                source_module='setting', wagon_plate=wagon.wagon_name,
             )
+        else:
+            # Accumulate chamber_codes + total_weight on the trip for multi-chamber fill
+            codes = list(trip.chamber_codes or [])
+            if chamber_code not in codes:
+                codes.append(chamber_code)
+                trip.chamber_codes = codes
+            pk = w.get('packages') or 0
+            if pk:
+                trip.total_weight = (trip.total_weight or 0) + pk
+                trip.save(update_fields=['chamber_codes', 'total_weight'])
         SettingWagon.objects.create(
             setting_event=event, wagon=wagon, trip=trip, position_in_event=i, **w,
         )
+        if not was_existing:
+            trip.save(update_fields=['wagon_plate'])
     _sync_chamber_loaded(chamber, loaded=False, setting_event=event)
     return event
 
@@ -227,7 +243,8 @@ def push_wagon(*, trip, readings=None, client_token=None, **fields):
         )
 
     trip.status = WagonTrip.STATUS_IN_TUNNEL
-    trip.save(update_fields=['status'])
+    trip.pushed_at = timezone.now()
+    trip.save(update_fields=['status', 'pushed_at'])
 
     # F4 (auto): derive the discharge record for FIFO-44 — no manual form.
     # exit_push_seq = entry_push_seq + 43 (tunnel fixed capacity 44).
@@ -240,7 +257,8 @@ def push_wagon(*, trip, readings=None, client_token=None, **fields):
 
 @transaction.atomic
 def exit_wagon(*, trip, exit_date=''):
-    """F4: mark discharge. Enforces FIFO-44: exit_push_seq = entry_push_seq + 43."""
+    """F4: mark discharge. Enforces FIFO-44: exit_push_seq = entry_push_seq + 43.
+    Idempotent — KilnExit may already exist from push_wagon's auto-derivation."""
     push = trip.kiln_pushes.order_by('-push_seq').first()
     if push is None:
         raise RuleViolation('Trip has no kiln push; cannot exit.')
@@ -248,12 +266,14 @@ def exit_wagon(*, trip, exit_date=''):
     entry = push.push_seq
     exit_seq = entry + (KILN_CAPACITY - 1)
 
-    kiln_exit = KilnExit.objects.create(
+    kiln_exit, _ = KilnExit.objects.update_or_create(
         trip=trip, wagon=trip.wagon, entry_push_seq=entry, exit_push_seq=exit_seq,
-        exit_date=exit_date, discharged=False,
+        defaults={'exit_date': exit_date, 'discharged': False},
     )
-    trip.status = WagonTrip.STATUS_AWAITING_DISCHARGE
-    trip.save(update_fields=['status'])
+    if trip.status != WagonTrip.STATUS_AWAITING_DISCHARGE:
+        trip.status = WagonTrip.STATUS_AWAITING_DISCHARGE
+        trip.exited_at = timezone.now()
+        trip.save(update_fields=['status', 'exited_at'])
     return kiln_exit
 
 
@@ -285,9 +305,11 @@ def register_packing(*, wagons, client_token=None, **header_fields):
             grade2_count=w.get('grade2_count'),
             waste_count=w.get('waste_count'),
         )
+        now = Now()
         trip.status = WagonTrip.STATUS_COMPLETED
-        trip.completed_at = timezone.now()
-        trip.save(update_fields=['status', 'completed_at'])
+        trip.completed_at = now
+        trip.exited_at = now  # seal the trip as closed; exited_at == completed_at for packed trips
+        trip.save(update_fields=['status', 'completed_at', 'exited_at'])
 
         KilnExit.objects.filter(trip=trip, discharged=False).update(discharged=True)
 

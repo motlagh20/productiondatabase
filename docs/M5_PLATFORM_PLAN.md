@@ -85,6 +85,23 @@ hardcoded** (in the current roof-tile plant it is typically 1, occasionally 2).
 After the wagon is packed the trip is completed. Any later load of that same wagon
 (weeks later, next shift, next product) starts a **new trip**.
 
+**Trip summary fields (added 2026-09-03):** each `WagonTrip` carries a denormalized
+summary computed/stored by the domain services as the journey progresses:
+
+| Field | Type | Populated by | Meaning |
+|-------|------|-------------|---------|
+| `wagon_plate` | `CharField` | `create_setting_batch` (new trip) | Denormalized plate name — avoids a join for list views |
+| `chamber_codes` | `JSONField(list)` | `create_setting_batch` (accumulated per chamber unload) | Which chambers filled this wagon in this journey, e.g. `["CH04","CH12"]` |
+| `total_weight` | `IntegerField` | `create_setting_batch` (sum of `setting_wagon.packages`) | Total packages loaded across all chambers this journey |
+| `pushed_at` | `DateTimeField` | `push_wagon` | When the wagon entered the kiln tunnel |
+| `exited_at` | `DateTimeField` | `exit_wagon` / `register_packing` | When the wagon left the tunnel (packing seals exited_at == completed_at) |
+| `entered_waiting_at` | `DateTimeField` (reserved) | — | When the wagon became full and moved to the waiting hall (not yet backfilled) |
+
+Migration 0008 (2026-09-03) backfills existing trips — `wagon_plate` 100% (32,367/32,367),
+`total_weight` 96% (31,302), `pushed_at` 96% (31,348 from KilnPush.created_at),
+`exited_at` via KilnExit.created_at for discharged trips; `chamber_codes` and `entered_waiting_at`
+reserved for future incremental backfill. New trips from this point onward are fully populated.
+
 **How the Setting form works:** the operator selects wagons by plate (not trip_id).
 `create_setting_batch` checks whether the wagon already has an active trip
 (`in_progress` / `body_dried` / `waiting_hall`). If yes → reuse it (multi-chamber
@@ -133,9 +150,9 @@ Base `/api/`. Django REST Framework, token auth.
 M5 docs (this file + ADR-0007) are **approved by owner** (2026-08-28). `M5_SRS.md` (expand §3),
 `M5_API_CONTRACT.md` (expand §4) drafted; Django models + React scaffold built (2026-08-29).
 
-## 9. Implementation status (2026-09-02)
+## 9. Implementation status (2026-09-03)
 
-**F1–F7 vertical slice + UI redesign complete.** The full F1 Dryer → F2 Setting → F3/F4 Kiln → 
+**F1–F7 vertical slice + UI redesign complete + trip summary fields added.** The full F1 Dryer → F2 Setting → F3/F4 Kiln → 
 F5 Packing → F7 Wagon journey trace flow is built with a new dual-theme UI shell. PR
 [#1](https://github.com/motlagh20/productiondatabase/pull/1) (`m5-slice-build` → `m0-docs`).
 

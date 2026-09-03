@@ -33,10 +33,16 @@ class WagonTrip(models.Model):
 
     trip_id = models.BigAutoField(primary_key=True)
     wagon = models.ForeignKey(Wagon, on_delete=models.PROTECT, db_column='wagon_id')
+    wagon_plate = models.CharField(max_length=20, blank=True, default='', db_index=True)
     started_at = models.DateTimeField(auto_now_add=True)
+    entered_waiting_at = models.DateTimeField(null=True, blank=True)
+    pushed_at = models.DateTimeField(null=True, blank=True)
+    exited_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_IN_PROGRESS)
     source_module = models.CharField(max_length=20, default='setting')
+    chamber_codes = models.JSONField(default=list, blank=True)  # e.g. ["CH04","CH12"]
+    total_weight = models.IntegerField(null=True, blank=True)  # sum of setting_wagon packages
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
