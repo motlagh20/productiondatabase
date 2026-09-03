@@ -281,13 +281,24 @@ def dryer_cycle_list(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def setting_event_list(request):
-    """List setting events with nested wagons + resolved names. Newest-first."""
+    """List setting events with nested wagons + resolved names.
+    ?limit= (default 50, max 200) & ?page=1 (default 1).
+    Returns {count, results[]} so the frontend can paginate."""
+    limit = int(request.query_params.get('limit', 50))
+    if limit > 200:
+        limit = 200
+    page = int(request.query_params.get('page', 1))
+    if page < 1:
+        page = 1
     qs = (SettingEvent.objects
           .select_related('chamber', 'product', 'supervisor', 'operator')
           .prefetch_related('wagons__wagon', 'wagons__glaze')
-          .order_by('-setting_event_id'))
-    limit = int(request.query_params.get('limit', 50))
-    return Response(SettingEventOut(qs[:limit], many=True).data)
+          .order_by('-date_jalali', '-setting_event_id'))
+    total = qs.count()
+    start = (page - 1) * limit
+    end = start + limit
+    rows = qs[start:end]
+    return Response({'count': total, 'results': SettingEventOut(rows, many=True).data})
 
 
 @api_view(['GET'])

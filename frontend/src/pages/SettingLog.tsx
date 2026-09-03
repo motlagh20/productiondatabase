@@ -1,36 +1,70 @@
-/**
- * Setting transactions (`/setting/log`) — read-only log of Setting batches with
- * nested wagons: client-side search (chamber/date/product), shift filter, and
- * CSV export with UTF-8 BOM. Expandable rows show the wagon details.
- */
-import { useEffect, useMemo, useState } from 'react'
+/** * Setting transactions (`/setting/log`) — read-only log of Setting batches with * nested wagons: client-side search (chamber/date/product), shift filter, and * paginated display (10/20/50/100 per page) with CSV export. */
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search } from 'lucide-react'
+import { Plus, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 
 import { apiErrorMessage, fetchSettingEvents, type SettingEventData } from '../api'
 import { useUI } from '../context/UIContext'
 import { Banner, PageHeader, Panel, tableCls, thCls, trCls } from '../components/ui'
 import { SHIFTS } from '../jalali'
 
+type PageSize = 10 | 20 | 50 | 100
+
+const PAGE_SIZE_OPTIONS: { label: string; value: PageSize }[] = [
+  { label: '10', value: 10 },
+  { label: '20', value: 20 },
+  { label: '50', value: 50 },
+  { label: '100', value: 100 },
+]
+
 export default function SettingLog() {
   const { t } = useUI()
   const navigate = useNavigate()
   const [events, setEvents] = useState<SettingEventData[] | null>(null)
+  const [totalCount, setTotalCount] = useState(0)
   const [search, setSearch] = useState('')
   const [shiftFilter, setShiftFilter] = useState('')
   const [expanded, setExpanded] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const reload = () => {
-    fetchSettingEvents()
-      .then(setEvents)
+  // Pagination state
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState<PageSize>(20)
+  const totalPagesRef = useRef(1)
+
+  const reload = useCallback(() => {
+    const p = Math.max(1, page)
+    fetchSettingEvents(p, pageSize)
+      .then((data) => {
+        if (data && typeof data === 'object' && 'results' in data) {
+          setEvents(data.results as SettingEventData[])
+          setTotalCount(data.count as number)
+          totalPagesRef.current = Math.ceil((data.count as number) / pageSize) || 1
+        } else if (Array.isArray(data)) {
+          // Fallback: old non-paginated response
+          setEvents(data as SettingEventData[])
+          setTotalCount(data.length)
+          totalPagesRef.current = Math.ceil(data.length / pageSize) || 1
+        } else {
+          setEvents([])
+          setTotalCount(0)
+          totalPagesRef.current = 1
+        }
+      })
       .catch((e: unknown) => setError(apiErrorMessage(e)))
-  }
+  }, [page, pageSize])
 
   useEffect(() => {
     reload()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [reload])
+
+  // Recalculate total pages when page size changes
+  useEffect(() => {
+    totalPagesRef.current = Math.ceil(totalCount / pageSize) || 1
+    if (page > totalPagesRef.current) setPage(1)
+  }, [pageSize, totalCount])
+
+  const totalPages = totalPagesRef.current
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -47,9 +81,16 @@ export default function SettingLog() {
     })
   }, [events, search, shiftFilter])
 
-  const shiftLabel = (v: number) => (v === 1 ? t.shift_morning : v === 2 ? t.shift_evening : t.shift_night)
+  const shiftLabel = (v: number) =>
+    v === 1 ? t.shift_morning : v === 2 ? t.shift_evening : t.shift_night
+
+  const goToPage = (p: number) => {
+    setPage(Math.max(1, Math.min(p, totalPages)))
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   const exportCSV = () => {
+    // Show a warning if showing only a page
     const rows = [
       ['ID', t.date_jalali, t.chamber, t.shift, t.product_select, t.supervisor, t.wagons_count, t.dryer_waste],
       ...filtered.map((ev) => [
@@ -63,13 +104,23 @@ export default function SettingLog() {
         ev.dryer_waste ?? '',
       ]),
     ]
-    const csvContent = '﻿' + rows.map((r) => r.join(',')).join('\n')
+    const csvContent = '\uFEFF' + rows.map((r) => r.join(',')).join('\n')
     const link = document.createElement('a')
     link.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvContent))
     link.setAttribute('download', `setting_transactions_${Date.now()}.csv`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+  }
+
+  // Reset to page 1 when filters change
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearch(e.target.value)
+    setPage(1)
+  }
+  const handleShiftChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setShiftFilter(e.target.value)
+    setPage(1)
   }
 
   return (
@@ -106,14 +157,14 @@ export default function SettingLog() {
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={handleSearch}
             placeholder={t.search}
             className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 pr-9 pl-3 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-amber-400"
           />
         </div>
         <select
           value={shiftFilter}
-          onChange={(e) => setShiftFilter(e.target.value)}
+          onChange={handleShiftChange}
           className="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none"
         >
           <option value="">{t.all}</option>
@@ -123,6 +174,66 @@ export default function SettingLog() {
             </option>
           ))}
         </select>
+      </Panel>
+
+      {/* Pagination controls */}
+      <Panel className="p-4 flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-500 dark:text-slate-400">تعداد در صفحه:</span>
+          <select
+            value={pageSize}
+            onChange={(e) => {
+              setPageSize(Number(e.target.value) as PageSize)
+              setPage(1)
+            }}
+            className="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none"
+          >
+            {PAGE_SIZE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+          <span>صفحه {page} از {totalPages}</span>
+          <span>·</span>
+          <span>{totalCount} رکورد کل</span>
+        </div>
+
+        <div className="flex items-center gap-2 ml-auto">
+          <button
+            onClick={() => goToPage(page - 1)}
+            disabled={page <= 1}
+            className="p-2 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+            title="صفحه قبلی"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+
+          {/* Page number quick-jump */}
+          <input
+            type="number"
+            min={1}
+            max={totalPages}
+            value={page}
+            onChange={(e) => {
+              const v = Number(e.target.value)
+              if (v >= 1 && v <= totalPages) goToPage(v)
+            }}
+            className="w-14 text-center rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-amber-400"
+          />
+
+          <button
+            onClick={() => goToPage(page + 1)}
+            disabled={page >= totalPages}
+            className="p-2 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+            title="صفحه بعدی"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
       </Panel>
 
       {/* Table */}

@@ -200,8 +200,10 @@ export const fetchDryerChamberStatus = () =>
 export const fetchDryerCycles = (chamberId?: number) =>
   api.get<DryerCycleData[]>('/dryer/cycles/list/' + (chamberId ? `?chamber_id=${chamberId}` : '')).then((r) => r.data)
 
-export const fetchSettingEvents = () =>
-  api.get<SettingEventData[]>('/setting/events/list/').then((r) => r.data)
+export const fetchSettingEvents = (page = 1, limit = 50) =>
+  api.get<{ count: number; results: SettingEventData[] }>(
+    '/setting/events/list/?page=' + page + '&limit=' + limit
+  ).then((r) => r.data)
 
 export const fetchKilnPushes = () =>
   api.get<KilnPushData[]>('/kiln/pushes/list/').then((r) => r.data)
