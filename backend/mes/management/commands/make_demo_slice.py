@@ -93,7 +93,9 @@ def _rebase(date_str):
 
     1399.03.08 -> TGT_LO (the start of the window).
     1399.06.08 -> TGT_HI (the end of the window, near today).
-    Days in between are mapped proportionally, clamped to [TGT_LO, TGT_HI].
+    Uses PROPORTIONAL mapping: all SRC_SPAN source days are spread across
+    the actual target span (TGT_HI - TGT_LO days), so events are distributed
+    across the full window instead of piling up on the last day.
     """
     if not date_str or "." not in date_str:
         return date_str
@@ -102,8 +104,13 @@ def _rebase(date_str):
         src = jdatetime.date(int(parts[0]), int(parts[1]), int(parts[2]))
     except (ValueError, IndexError):
         return date_str
+    actual_span = (TGT_HI - TGT_LO).days  # e.g. 11 days (June 1 -> June 12)
+    if actual_span == 0 or SRC_SPAN == 0:
+        return TGT_LO.strftime("%Y.%m.%d")
     offset = (src - SRC_LO_DATE).days
-    tgt = TGT_LO + jdatetime.timedelta(days=offset)
+    # Proportional: offset/92 -> fraction of actual_span
+    tgt_offset = int(round(offset * actual_span / SRC_SPAN))
+    tgt = TGT_LO + jdatetime.timedelta(days=tgt_offset)
     if tgt > TGT_HI:
         tgt = TGT_HI
     return tgt.strftime("%Y.%m.%d")
